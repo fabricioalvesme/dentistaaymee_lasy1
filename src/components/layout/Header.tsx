@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -10,6 +10,7 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const { user, signOut } = useAuth();
   const { settings } = useTheme();
+  const navigate = useNavigate();
 
   // Detecta o scroll para mudar o estilo do header
   useEffect(() => {
@@ -20,6 +21,16 @@ export function Header() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Função de logout segura
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    }
+  };
 
   return (
     <header
@@ -59,27 +70,32 @@ export function Header() {
             
             {user ? (
               <div className="flex items-center space-x-4">
-                <Link to="/admin/dashboard">
-                  <Button variant="outline" size="sm">
-                    <User className="h-4 w-4 mr-1" />
-                    Área Admin
-                  </Button>
-                </Link>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate('/admin/dashboard')}
+                >
+                  <User className="h-4 w-4 mr-1" />
+                  Área Admin
+                </Button>
+                
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => signOut()}
+                  onClick={handleSignOut}
                 >
                   Sair
                 </Button>
               </div>
             ) : (
-              <Link to="/admin/login">
-                <Button variant="outline" size="sm">
-                  <User className="h-4 w-4 mr-1" />
-                  Login
-                </Button>
-              </Link>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => navigate('/admin/login')}
+              >
+                <User className="h-4 w-4 mr-1" />
+                Login
+              </Button>
             )}
           </nav>
 
@@ -125,20 +141,23 @@ export function Header() {
               
               {user ? (
                 <div className="flex flex-col space-y-2 pt-2 border-t border-gray-200">
-                  <Link 
-                    to="/admin/dashboard"
-                    onClick={() => setIsMenuOpen(false)}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate('/admin/dashboard');
+                    }}
                   >
-                    <Button variant="outline" size="sm" className="w-full">
-                      <User className="h-4 w-4 mr-1" />
-                      Área Admin
-                    </Button>
-                  </Link>
+                    <User className="h-4 w-4 mr-1" />
+                    Área Admin
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      signOut();
+                      handleSignOut();
                       setIsMenuOpen(false);
                     }}
                   >
@@ -146,16 +165,18 @@ export function Header() {
                   </Button>
                 </div>
               ) : (
-                <Link 
-                  to="/admin/login"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="pt-2 border-t border-gray-200"
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full mt-2 border-t border-gray-200"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    navigate('/admin/login');
+                  }}
                 >
-                  <Button variant="outline" size="sm" className="w-full">
-                    <User className="h-4 w-4 mr-1" />
-                    Login
-                  </Button>
-                </Link>
+                  <User className="h-4 w-4 mr-1" />
+                  Login
+                </Button>
               )}
             </nav>
           </div>

@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -18,7 +18,14 @@ import AppointmentCalendar from "./pages/AppointmentCalendar";
 import SEOSettings from "./pages/SEOSettings";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1
+    }
+  }
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -76,6 +83,9 @@ const App = () => (
                     </ProtectedRoute>
                   } 
                 />
+                
+                {/* Redirecionamentos */}
+                <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                 
                 {/* Rota 404 */}
                 <Route path="*" element={<NotFound />} />
