@@ -14,7 +14,8 @@ import {
   Baby, 
   Scissors,
   Sun,
-  MessageCircle
+  MessageCircle,
+  Tooth
 } from 'lucide-react';
 
 const Index = () => {
@@ -92,16 +93,6 @@ const Index = () => {
     }
   ];
 
-  // Foto atual da Dra. Aymée
-  const doctorImageUrl = "/photo_2025-07-09_19-18-00.jpg";
-
-  // Imagens de consultório
-  const consultorioImagens = {
-    imagem1: "/consultorio1.jpg",
-    imagem2: "/consultorio2.jpg",
-    imagem3: "/consultorio3.jpg"
-  };
-
   return (
     <>
       <Helmet>
@@ -110,7 +101,7 @@ const Index = () => {
           name="description" 
           content={settings?.meta_description || 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.'}
         />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Helmet>
 
       <Header />
@@ -140,28 +131,23 @@ const Index = () => {
               </div>
             </div>
             <div className="md:w-1/2 flex justify-center">
-              {/* Carrossel de imagens de consultório */}
+              {/* Placeholder para imagens de consultório */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-md">
                 <div className="col-span-1 md:col-span-2">
-                  <img 
-                    src={consultorioImagens.imagem1} 
-                    alt="Consultório Odontopediátrico da Dra. Aymée Frauzino" 
-                    className="w-full h-48 object-cover rounded-lg shadow-md"
-                  />
+                  <div className="w-full h-48 bg-blue-100 rounded-lg shadow-md flex items-center justify-center">
+                    <Tooth className="h-16 w-16 text-primary" />
+                    <span className="ml-2 text-primary font-medium">Consultório Odontopediátrico</span>
+                  </div>
                 </div>
                 <div>
-                  <img 
-                    src={consultorioImagens.imagem2} 
-                    alt="Atendimento infantil odontológico" 
-                    className="w-full h-40 object-cover rounded-lg shadow-md"
-                  />
+                  <div className="w-full h-40 bg-blue-50 rounded-lg shadow-md flex items-center justify-center">
+                    <Smile className="h-12 w-12 text-primary/70" />
+                  </div>
                 </div>
                 <div>
-                  <img 
-                    src={consultorioImagens.imagem3} 
-                    alt="Ambiente do consultório infantil" 
-                    className="w-full h-40 object-cover rounded-lg shadow-md"
-                  />
+                  <div className="w-full h-40 bg-blue-50 rounded-lg shadow-md flex items-center justify-center">
+                    <Baby className="h-12 w-12 text-primary/70" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -176,13 +162,9 @@ const Index = () => {
           
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="md:w-1/3 flex justify-center">
-              {/* Imagem da Dra. Aymée */}
-              <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-primary/20">
-                <img 
-                  src={doctorImageUrl} 
-                  alt="Dra. Aymée Frauzino - Odontopediatra em Morrinhos-GO" 
-                  className="w-full h-full object-cover"
-                />
+              {/* Placeholder para a foto da Dra. Aymée */}
+              <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-primary/20 bg-blue-50 flex items-center justify-center">
+                <Tooth className="h-20 w-20 text-primary" />
               </div>
             </div>
             
