@@ -47,6 +47,7 @@ import { z } from 'zod';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const appointmentSchema = z.object({
   titulo: z.string().min(3, 'Título deve ter pelo menos 3 caracteres'),
@@ -68,6 +69,7 @@ const AppointmentCalendar = () => {
   const [selectedEvent, setSelectedEvent] = useState<Appointment | null>(null);
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   const [deleting, setDeleting] = useState(false);
+  const isMobile = useIsMobile();
   
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
@@ -350,7 +352,7 @@ const AppointmentCalendar = () => {
                   </TabsList>
                 </Tabs>
                 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 w-full sm:w-auto">
                   <Button 
                     variant="outline" 
                     size="sm"
@@ -398,47 +400,54 @@ const AppointmentCalendar = () => {
               </div>
             </div>
             
-            <div className="flex flex-col md:flex-row">
-              <div className="md:w-64 border-r p-4">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  className="rounded-md border"
-                  modifiers={{
-                    hasEvents: appointments.map(event => new Date(event.data_hora_inicio))
-                  }}
-                  modifiersClassNames={{
-                    hasEvents: "bg-primary/20 font-bold text-primary"
-                  }}
-                />
-                
-                <div className="mt-4">
-                  <h3 className="font-medium mb-2">Próximos Eventos</h3>
-                  
-                  {appointments.length === 0 ? (
-                    <p className="text-sm text-gray-500">Nenhum evento agendado</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {appointments
-                        .filter(event => new Date(event.data_hora_inicio) >= new Date())
-                        .slice(0, 5)
-                        .map(event => (
-                          <li 
-                            key={event.id}
-                            className="text-sm p-2 rounded bg-gray-50 hover:bg-gray-100 cursor-pointer"
-                            onClick={() => handleEventClick(event)}
-                          >
-                            <p className="font-medium">{event.titulo}</p>
-                            <p className="text-gray-500">{formatDateTime(event.data_hora_inicio)}</p>
-                          </li>
-                        ))}
-                    </ul>
-                  )}
+            <div className="flex flex-col lg:flex-row">
+              {/* Sidebar do calendário - responsivo */}
+              <div className={`${isMobile ? 'w-full p-4' : 'lg:w-64 border-r p-4'}`}>
+                <div className="overflow-x-auto">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    className="rounded-md border min-w-[240px] mx-auto"
+                    modifiers={{
+                      hasEvents: appointments.map(event => new Date(event.data_hora_inicio))
+                    }}
+                    modifiersClassNames={{
+                      hasEvents: "bg-primary/20 font-bold text-primary"
+                    }}
+                  />
                 </div>
+                
+                {/* Lista de próximos eventos - exibe apenas em telas maiores ou quando não estiver na visualização de dia em telas pequenas */}
+                {(!isMobile || (isMobile && viewMode !== 'day')) && (
+                  <div className="mt-4">
+                    <h3 className="font-medium mb-2">Próximos Eventos</h3>
+                    
+                    {appointments.length === 0 ? (
+                      <p className="text-sm text-gray-500">Nenhum evento agendado</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {appointments
+                          .filter(event => new Date(event.data_hora_inicio) >= new Date())
+                          .slice(0, 5)
+                          .map(event => (
+                            <li 
+                              key={event.id}
+                              className="text-sm p-2 rounded bg-gray-50 hover:bg-gray-100 cursor-pointer"
+                              onClick={() => handleEventClick(event)}
+                            >
+                              <p className="font-medium">{event.titulo}</p>
+                              <p className="text-gray-500">{formatDateTime(event.data_hora_inicio)}</p>
+                            </li>
+                          ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
               
-              <div className="flex-1 p-4">
+              {/* Conteúdo principal do calendário */}
+              <div className="flex-1 p-4 overflow-x-auto">
                 <div className="mb-4">
                   <h2 className="text-xl font-bold">
                     {viewMode === 'day' && formatDate(selectedDate)}
@@ -448,7 +457,7 @@ const AppointmentCalendar = () => {
                 </div>
                 
                 <Tabs value={viewMode} className="mt-0">
-                  <TabsContent value="day">
+                  <TabsContent value="day" className="min-w-[600px]">
                     {getEventsForDay(selectedDate).length === 0 ? (
                       <div className="text-center py-12 bg-gray-50 rounded-md">
                         <p className="text-gray-500">Nenhum evento agendado para este dia</p>
@@ -506,7 +515,7 @@ const AppointmentCalendar = () => {
                     )}
                   </TabsContent>
                   
-                  <TabsContent value="week">
+                  <TabsContent value="week" className="min-w-[700px] overflow-x-auto">
                     <div className="grid grid-cols-7 gap-2">
                       {generateWeekDays(selectedDate).map((day, index) => (
                         <div key={index} className="text-center">
@@ -546,7 +555,7 @@ const AppointmentCalendar = () => {
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="month">
+                  <TabsContent value="month" className="min-w-[800px] overflow-x-auto">
                     <div className="grid grid-cols-7 gap-1">
                       {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
                         <div key={day} className="text-center font-medium p-2">
@@ -673,13 +682,16 @@ const AppointmentCalendar = () => {
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Data*</FormLabel>
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                      initialFocus
-                    />
+                    <div className="overflow-x-auto">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                        initialFocus
+                        className="mx-auto"
+                      />
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
