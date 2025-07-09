@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import type { Settings } from '@/lib/supabaseClient';
+import { toast } from 'sonner';
 
 interface ThemeContextType {
   settings: Partial<Settings> | null;
@@ -29,6 +30,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase
           .from('settings')
           .select('*')
+          .limit(1)
           .single();
 
         if (error && error.code !== 'PGRST116') {
@@ -46,6 +48,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
 
     loadSettings();
+    
+    // Inscrever para mudanças em tempo real nas configurações
+    const subscription = supabase
+      .channel('settings-changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'settings' 
+      }, payload => {
+        console.log('Mudança detectada nas configurações:', payload);
+        if (payload.new) {
+          setSettings(payload.new as Partial<Settings>);
+        }
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, []);
 
   useEffect(() => {
@@ -87,14 +108,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
 
       // Recarrega as configurações
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('settings')
         .select('*')
+        .limit(1)
         .single();
+        
+      if (error) {
+        throw error;
+      }
 
       setSettings(data || defaultSettings);
+      toast.success('Configurações atualizadas com sucesso!');
     } catch (error) {
       console.error('Erro ao atualizar configurações:', error);
+      toast.error('Erro ao atualizar configurações. Tente novamente.');
       throw error;
     } finally {
       setLoading(false);

@@ -17,7 +17,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useTheme } from '@/contexts/ThemeContext';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -37,17 +36,18 @@ const seoSettingsSchema = z.object({
 type SEOSettingsValues = z.infer<typeof seoSettingsSchema>;
 
 const SEOSettings = () => {
-  const { settings, updateSettings, loading: themeLoading } = useTheme();
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [settingsId, setSettingsId] = useState<string | null>(null);
   
   const form = useForm<SEOSettingsValues>({
     resolver: zodResolver(seoSettingsSchema),
     defaultValues: {
-      meta_title: '',
-      meta_description: '',
+      meta_title: 'Dra. Aymée Frauzino – Odontopediatra',
+      meta_description: 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.',
       about_text: '',
       services_text: '',
-      convenios_text: '',
+      convenios_text: 'Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.',
       logo_url: '',
       primary_color: '#3B82F6',
       secondary_color: '#10B981',
@@ -57,26 +57,106 @@ const SEOSettings = () => {
 
   // Carregar valores iniciais
   useEffect(() => {
-    if (settings && !themeLoading) {
-      form.reset({
-        meta_title: settings.meta_title || 'Dra. Aymée Frauzino – Odontopediatra',
-        meta_description: settings.meta_description || 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.',
-        about_text: settings.about_text || '',
-        services_text: settings.services_text || '',
-        convenios_text: settings.convenios_text || 'Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.',
-        logo_url: settings.logo_url || '',
-        primary_color: settings.primary_color || '#3B82F6',
-        secondary_color: settings.secondary_color || '#10B981',
-        accent_color: settings.accent_color || '#F3F4F6',
-      });
+    async function loadSettings() {
+      try {
+        setLoading(true);
+        
+        const { data, error } = await supabase
+          .from('settings')
+          .select('*')
+          .limit(1)
+          .single();
+        
+        if (error && error.code !== 'PGRST116') {
+          console.error('Erro ao carregar configurações:', error);
+          toast.error('Erro ao carregar configurações');
+          return;
+        }
+        
+        if (data) {
+          setSettingsId(data.id);
+          
+          form.reset({
+            meta_title: data.meta_title || 'Dra. Aymée Frauzino – Odontopediatra',
+            meta_description: data.meta_description || 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.',
+            about_text: data.about_text || '',
+            services_text: data.services_text || '',
+            convenios_text: data.convenios_text || 'Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.',
+            logo_url: data.logo_url || '',
+            primary_color: data.primary_color || '#3B82F6',
+            secondary_color: data.secondary_color || '#10B981',
+            accent_color: data.accent_color || '#F3F4F6',
+          });
+          
+          console.log('Configurações carregadas com sucesso:', data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar configurações:', error);
+        toast.error('Erro ao carregar configurações');
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [settings, themeLoading, form]);
+
+    loadSettings();
+  }, [form]);
 
   const onSubmit = async (data: SEOSettingsValues) => {
     try {
       setSaving(true);
-      await updateSettings(data);
+      
+      // Aplicar variáveis CSS com as cores
+      document.documentElement.style.setProperty('--color-primary', data.primary_color);
+      document.documentElement.style.setProperty('--color-secondary', data.secondary_color);
+      document.documentElement.style.setProperty('--color-accent', data.accent_color);
+      
+      let result;
+      
+      if (settingsId) {
+        // Atualizar configurações existentes
+        result = await supabase
+          .from('settings')
+          .update(data)
+          .eq('id', settingsId);
+      } else {
+        // Criar novas configurações
+        result = await supabase
+          .from('settings')
+          .insert([data])
+          .select();
+          
+        if (result.data && result.data.length > 0) {
+          setSettingsId(result.data[0].id);
+        }
+      }
+      
+      if (result.error) {
+        throw result.error;
+      }
+      
       toast.success('Configurações salvas com sucesso!');
+      
+      // Recarregar dados para garantir que tudo foi salvo corretamente
+      const { data: reloadedData, error: reloadError } = await supabase
+        .from('settings')
+        .select('*')
+        .eq('id', settingsId || result.data?.[0]?.id)
+        .single();
+      
+      if (!reloadError && reloadedData) {
+        form.reset({
+          meta_title: reloadedData.meta_title,
+          meta_description: reloadedData.meta_description,
+          about_text: reloadedData.about_text || '',
+          services_text: reloadedData.services_text || '',
+          convenios_text: reloadedData.convenios_text,
+          logo_url: reloadedData.logo_url || '',
+          primary_color: reloadedData.primary_color,
+          secondary_color: reloadedData.secondary_color,
+          accent_color: reloadedData.accent_color,
+        });
+      }
+      
     } catch (error) {
       console.error('Erro ao salvar configurações:', error);
       toast.error('Erro ao salvar configurações. Tente novamente.');
@@ -97,7 +177,7 @@ const SEOSettings = () => {
           <p className="text-gray-500">Personalize as informações exibidas no site</p>
         </div>
         
-        {themeLoading ? (
+        {loading ? (
           <div className="flex justify-center items-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>

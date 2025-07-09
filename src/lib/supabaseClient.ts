@@ -86,6 +86,7 @@ export type Settings = {
   primary_color: string;
   secondary_color: string;
   accent_color: string;
+  updated_at: string;
 };
 
 export type Appointment = {

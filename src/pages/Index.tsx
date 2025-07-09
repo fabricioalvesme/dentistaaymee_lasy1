@@ -93,7 +93,7 @@ const Index = () => {
   ];
 
   // URL da imagem da Dra. Aymée
-  const doctorImageUrl = "/Dra-Aymee-Frauzino-Morrinhos-Goias.jpeg";
+  const doctorImageUrl = "/Dra-Aymee-Frauzino-Morrinhos-Goias.png";
 
   return (
     <>
@@ -103,6 +103,7 @@ const Index = () => {
           name="description" 
           content={settings?.meta_description || 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.'}
         />
+        <link rel="icon" href="/favicon.ico" />
       </Helmet>
 
       <Header />
@@ -132,18 +133,28 @@ const Index = () => {
               </div>
             </div>
             <div className="md:w-1/2 flex justify-center">
-              {/* Imagem placeholder - substitua pela imagem real da dentista */}
-              <div className="relative w-full max-w-md h-80 md:h-96 bg-gray-200 rounded-lg overflow-hidden">
-                {/* Se houver uma imagem real */}
-                {/* <img 
-                  src="/images/dra-aymee.jpg" 
-                  alt="Dra. Aymée Frauzino" 
-                  className="w-full h-full object-cover"
-                /> */}
-                
-                {/* Placeholder */}
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                  <span>Imagem da Dra. Aymée</span>
+              {/* Carrossel de imagens de consultório */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-md">
+                <div className="col-span-1 md:col-span-2">
+                  <img 
+                    src="/consultorio1.jpg" 
+                    alt="Consultório Odontopediátrico da Dra. Aymée Frauzino" 
+                    className="w-full h-48 object-cover rounded-lg shadow-md"
+                  />
+                </div>
+                <div>
+                  <img 
+                    src="/consultorio2.jpg" 
+                    alt="Atendimento infantil odontológico" 
+                    className="w-full h-40 object-cover rounded-lg shadow-md"
+                  />
+                </div>
+                <div>
+                  <img 
+                    src="/consultorio3.jpg" 
+                    alt="Ambiente do consultório infantil" 
+                    className="w-full h-40 object-cover rounded-lg shadow-md"
+                  />
                 </div>
               </div>
             </div>
@@ -173,7 +184,7 @@ const Index = () => {
                 __html: settings?.about_text || `
                   <p>Dra. Aymée Frauzino é especialista em Odontopediatria, dedicada a proporcionar cuidados odontológicos de excelência para crianças de todas as idades.</p>
                   
-                  <p>Formada pela Universidade X, com especialização em Odontopediatria pela Universidade Y, possui mais de 10 anos de experiência no atendimento infantil, combinando técnica, conhecimento científico e uma abordagem lúdica e acolhedora.</p>
+                  <p>Formada pela Universidade Federal de Goiás, com especialização em Odontopediatria, possui ampla experiência no atendimento infantil, combinando técnica, conhecimento científico e uma abordagem lúdica e acolhedora.</p>
                   
                   <p>Seu consultório foi planejado para oferecer um ambiente tranquilo e divertido, onde as crianças possam se sentir seguras durante o tratamento. Dra. Aymée acredita que uma experiência positiva na infância é fundamental para formar adultos sem medo de ir ao dentista.</p>
                 `
