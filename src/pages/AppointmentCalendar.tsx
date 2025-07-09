@@ -12,7 +12,9 @@ import {
   Clock,
   User,
   Trash2,
-  Edit
+  Edit,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import {
   Dialog,
@@ -69,6 +71,7 @@ const AppointmentCalendar = () => {
   const [selectedEvent, setSelectedEvent] = useState<Appointment | null>(null);
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   const [deleting, setDeleting] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const isMobile = useIsMobile();
   
   const form = useForm<AppointmentFormValues>({
@@ -311,6 +314,81 @@ const AppointmentCalendar = () => {
     });
   };
 
+  // Obter eventos para o dia selecionado com slots de tempo
+  const getDayEvents = () => {
+    const todayEvents = getEventsForDay(selectedDate);
+    if (todayEvents.length === 0) {
+      return (
+        <div className="text-center py-12 bg-gray-50 rounded-md">
+          <p className="text-gray-500">Nenhum evento agendado para este dia</p>
+          <Button 
+            variant="link" 
+            onClick={handleAddEvent}
+            className="mt-2"
+          >
+            Adicionar Evento
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {generateTimeSlots().map(timeSlot => {
+          const [hours, minutes] = timeSlot.split(':').map(Number);
+          const slotDate = new Date(selectedDate);
+          slotDate.setHours(hours, minutes, 0, 0);
+          
+          const eventsAtTime = todayEvents.filter(event => {
+            const eventStart = new Date(event.data_hora_inicio);
+            const eventEnd = new Date(event.data_hora_fim);
+            return eventStart <= slotDate && eventEnd > slotDate;
+          });
+          
+          if (eventsAtTime.length === 0) return null;
+          
+          return (
+            <div key={timeSlot} className="flex">
+              <div className="w-16 text-right pr-4 text-gray-500">
+                {timeSlot}
+              </div>
+              
+              <div className="flex-1 space-y-2">
+                {eventsAtTime.map(event => (
+                  <div
+                    key={event.id}
+                    className="p-3 rounded-md bg-primary/10 border-l-4 border-primary cursor-pointer hover:bg-primary/20"
+                    onClick={() => handleEventClick(event)}
+                  >
+                    <h3 className="font-medium">{event.titulo}</h3>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Clock className="h-3 w-3 mr-1" />
+                      <span>
+                        {new Date(event.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - 
+                        {new Date(event.data_hora_fim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Próximos eventos
+  const getUpcomingEvents = () => {
+    const now = new Date();
+    return appointments
+      .filter(event => new Date(event.data_hora_inicio) >= now)
+      .sort((a, b) => 
+        new Date(a.data_hora_inicio).getTime() - new Date(b.data_hora_inicio).getTime()
+      )
+      .slice(0, 5);
+  };
+
   return (
     <AdminLayout>
       <Helmet>
@@ -337,294 +415,265 @@ const AppointmentCalendar = () => {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-4 border-b">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <Tabs 
-                  value={viewMode} 
-                  onValueChange={(value) => setViewMode(value as 'day' | 'week' | 'month')}
-                  className="w-full sm:w-auto"
-                >
-                  <TabsList className="grid grid-cols-3">
-                    <TabsTrigger value="day">Dia</TabsTrigger>
-                    <TabsTrigger value="week">Semana</TabsTrigger>
-                    <TabsTrigger value="month">Mês</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                
-                <div className="flex items-center space-x-2 w-full sm:w-auto">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      const newDate = new Date(selectedDate);
-                      if (viewMode === 'day') {
-                        newDate.setDate(newDate.getDate() - 1);
-                      } else if (viewMode === 'week') {
-                        newDate.setDate(newDate.getDate() - 7);
-                      } else {
-                        newDate.setMonth(newDate.getMonth() - 1);
-                      }
-                      setSelectedDate(newDate);
-                    }}
-                  >
-                    Anterior
-                  </Button>
+          <div className="space-y-6">
+            {/* Card de data selecionada e controles */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <CardTitle>
+                      {viewMode === 'day' && formatDate(selectedDate)}
+                      {viewMode === 'week' && `Semana de ${formatDate(generateWeekDays(selectedDate)[0])} a ${formatDate(generateWeekDays(selectedDate)[6])}`}
+                      {viewMode === 'month' && `${selectedDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`}
+                    </CardTitle>
+                  </div>
                   
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setSelectedDate(new Date())}
-                  >
-                    Hoje
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      const newDate = new Date(selectedDate);
-                      if (viewMode === 'day') {
-                        newDate.setDate(newDate.getDate() + 1);
-                      } else if (viewMode === 'week') {
-                        newDate.setDate(newDate.getDate() + 7);
-                      } else {
-                        newDate.setMonth(newDate.getMonth() + 1);
-                      }
-                      setSelectedDate(newDate);
-                    }}
-                  >
-                    Próximo
-                  </Button>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex flex-col lg:flex-row">
-              {/* Sidebar do calendário - responsivo */}
-              <div className={`${isMobile ? 'w-full p-4' : 'lg:w-64 border-r p-4'}`}>
-                <div className="overflow-x-auto">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(date)}
-                    className="rounded-md border min-w-[240px] mx-auto"
-                    modifiers={{
-                      hasEvents: appointments.map(event => new Date(event.data_hora_inicio))
-                    }}
-                    modifiersClassNames={{
-                      hasEvents: "bg-primary/20 font-bold text-primary"
-                    }}
-                  />
-                </div>
-                
-                {/* Lista de próximos eventos - exibe apenas em telas maiores ou quando não estiver na visualização de dia em telas pequenas */}
-                {(!isMobile || (isMobile && viewMode !== 'day')) && (
-                  <div className="mt-4">
-                    <h3 className="font-medium mb-2">Próximos Eventos</h3>
+                  <div className="flex items-center space-x-2 w-full sm:w-auto">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        const newDate = new Date(selectedDate);
+                        if (viewMode === 'day') {
+                          newDate.setDate(newDate.getDate() - 1);
+                        } else if (viewMode === 'week') {
+                          newDate.setDate(newDate.getDate() - 7);
+                        } else {
+                          newDate.setMonth(newDate.getMonth() - 1);
+                        }
+                        setSelectedDate(newDate);
+                      }}
+                    >
+                      Anterior
+                    </Button>
                     
-                    {appointments.length === 0 ? (
-                      <p className="text-sm text-gray-500">Nenhum evento agendado</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setSelectedDate(new Date())}
+                    >
+                      Hoje
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        const newDate = new Date(selectedDate);
+                        if (viewMode === 'day') {
+                          newDate.setDate(newDate.getDate() + 1);
+                        } else if (viewMode === 'week') {
+                          newDate.setDate(newDate.getDate() + 7);
+                        } else {
+                          newDate.setMonth(newDate.getMonth() + 1);
+                        }
+                        setSelectedDate(newDate);
+                      }}
+                    >
+                      Próximo
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="pt-2">
+                <div className="flex justify-between items-center mb-4">
+                  <Tabs 
+                    value={viewMode} 
+                    onValueChange={(value) => setViewMode(value as 'day' | 'week' | 'month')}
+                    className="w-full sm:w-auto"
+                  >
+                    <TabsList className="grid grid-cols-3">
+                      <TabsTrigger value="day">Dia</TabsTrigger>
+                      <TabsTrigger value="week">Semana</TabsTrigger>
+                      <TabsTrigger value="month">Mês</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setShowCalendar(!showCalendar)}
+                    className="flex items-center"
+                  >
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    {showCalendar ? (
+                      <>
+                        Ocultar Calendário
+                        <ChevronUp className="ml-2 h-4 w-4" />
+                      </>
                     ) : (
-                      <ul className="space-y-2">
-                        {appointments
-                          .filter(event => new Date(event.data_hora_inicio) >= new Date())
-                          .slice(0, 5)
-                          .map(event => (
-                            <li 
-                              key={event.id}
-                              className="text-sm p-2 rounded bg-gray-50 hover:bg-gray-100 cursor-pointer"
-                              onClick={() => handleEventClick(event)}
-                            >
-                              <p className="font-medium">{event.titulo}</p>
-                              <p className="text-gray-500">{formatDateTime(event.data_hora_inicio)}</p>
-                            </li>
-                          ))}
-                      </ul>
+                      <>
+                        Mostrar Calendário
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </>
                     )}
+                  </Button>
+                </div>
+                
+                {/* Calendário colapsável */}
+                {showCalendar && (
+                  <div className="mb-6 border rounded-md p-4 bg-gray-50">
+                    <div className="flex flex-col sm:flex-row gap-6">
+                      <div className="w-full sm:w-auto flex justify-center">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(date) => date && setSelectedDate(date)}
+                          className="rounded-md border bg-white"
+                          modifiers={{
+                            hasEvents: appointments.map(event => new Date(event.data_hora_inicio))
+                          }}
+                          modifiersClassNames={{
+                            hasEvents: "bg-primary/20 font-bold text-primary"
+                          }}
+                        />
+                      </div>
+                      
+                      <div className="flex-1">
+                        <h3 className="font-medium mb-2">Próximos Eventos</h3>
+                        
+                        {getUpcomingEvents().length === 0 ? (
+                          <p className="text-sm text-gray-500">Nenhum evento agendado</p>
+                        ) : (
+                          <ul className="space-y-2">
+                            {getUpcomingEvents().map(event => (
+                              <li 
+                                key={event.id}
+                                className="text-sm p-2 rounded bg-white hover:bg-gray-100 cursor-pointer border"
+                                onClick={() => handleEventClick(event)}
+                              >
+                                <p className="font-medium">{event.titulo}</p>
+                                <p className="text-gray-500">{formatDateTime(event.data_hora_inicio)}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
-              </div>
-              
-              {/* Conteúdo principal do calendário */}
-              <div className="flex-1 p-4 overflow-x-auto">
-                <div className="mb-4">
-                  <h2 className="text-xl font-bold">
-                    {viewMode === 'day' && formatDate(selectedDate)}
-                    {viewMode === 'week' && `Semana de ${formatDate(generateWeekDays(selectedDate)[0])} a ${formatDate(generateWeekDays(selectedDate)[6])}`}
-                    {viewMode === 'month' && `${selectedDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`}
-                  </h2>
-                </div>
                 
-                <Tabs value={viewMode} className="mt-0">
-                  <TabsContent value="day" className="min-w-[600px]">
-                    {getEventsForDay(selectedDate).length === 0 ? (
-                      <div className="text-center py-12 bg-gray-50 rounded-md">
-                        <p className="text-gray-500">Nenhum evento agendado para este dia</p>
-                        <Button 
-                          variant="link" 
-                          onClick={handleAddEvent}
-                          className="mt-2"
-                        >
-                          Adicionar Evento
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {generateTimeSlots().map(timeSlot => {
-                          const [hours, minutes] = timeSlot.split(':').map(Number);
-                          const slotDate = new Date(selectedDate);
-                          slotDate.setHours(hours, minutes, 0, 0);
-                          
-                          const eventsAtTime = getEventsForDay(selectedDate).filter(event => {
-                            const eventStart = new Date(event.data_hora_inicio);
-                            const eventEnd = new Date(event.data_hora_fim);
-                            return eventStart <= slotDate && eventEnd > slotDate;
-                          });
-                          
-                          if (eventsAtTime.length === 0) return null;
-                          
-                          return (
-                            <div key={timeSlot} className="flex">
-                              <div className="w-16 text-right pr-4 text-gray-500">
-                                {timeSlot}
+                {/* Visualizações */}
+                <div className="overflow-x-auto">
+                  <div className={`min-w-full ${viewMode === 'day' ? 'min-w-[600px]' : viewMode === 'week' ? 'min-w-[700px]' : 'min-w-[800px]'}`}>
+                    <Tabs value={viewMode} className="mt-0">
+                      <TabsContent value="day">
+                        {getDayEvents()}
+                      </TabsContent>
+                      
+                      <TabsContent value="week">
+                        <div className="grid grid-cols-7 gap-2">
+                          {generateWeekDays(selectedDate).map((day, index) => (
+                            <div key={index} className="text-center">
+                              <div className={`
+                                p-2 rounded-md mb-2 
+                                ${new Date().toDateString() === day.toDateString() ? 'bg-primary text-white' : 'bg-gray-100'}
+                              `}>
+                                <p className="font-medium">{day.toLocaleDateString('pt-BR', { weekday: 'short' })}</p>
+                                <p>{day.getDate()}</p>
                               </div>
                               
-                              <div className="flex-1 space-y-2">
-                                {eventsAtTime.map(event => (
+                              <div className="space-y-2">
+                                {getEventsForDay(day).map(event => (
                                   <div
                                     key={event.id}
-                                    className="p-3 rounded-md bg-primary/10 border-l-4 border-primary cursor-pointer hover:bg-primary/20"
+                                    className="p-2 rounded-md bg-primary/10 border-l-4 border-primary cursor-pointer hover:bg-primary/20 text-left"
                                     onClick={() => handleEventClick(event)}
                                   >
-                                    <h3 className="font-medium">{event.titulo}</h3>
-                                    <div className="flex items-center text-sm text-gray-500">
+                                    <h4 className="font-medium text-sm truncate">{event.titulo}</h4>
+                                    <div className="flex items-center text-xs text-gray-500">
                                       <Clock className="h-3 w-3 mr-1" />
                                       <span>
-                                        {new Date(event.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - 
-                                        {new Date(event.data_hora_fim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                        {new Date(event.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                       </span>
                                     </div>
                                   </div>
                                 ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </TabsContent>
-                  
-                  <TabsContent value="week" className="min-w-[700px] overflow-x-auto">
-                    <div className="grid grid-cols-7 gap-2">
-                      {generateWeekDays(selectedDate).map((day, index) => (
-                        <div key={index} className="text-center">
-                          <div className={`
-                            p-2 rounded-md mb-2 
-                            ${new Date().toDateString() === day.toDateString() ? 'bg-primary text-white' : 'bg-gray-100'}
-                          `}>
-                            <p className="font-medium">{day.toLocaleDateString('pt-BR', { weekday: 'short' })}</p>
-                            <p>{day.getDate()}</p>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            {getEventsForDay(day).map(event => (
-                              <div
-                                key={event.id}
-                                className="p-2 rounded-md bg-primary/10 border-l-4 border-primary cursor-pointer hover:bg-primary/20 text-left"
-                                onClick={() => handleEventClick(event)}
-                              >
-                                <h4 className="font-medium text-sm truncate">{event.titulo}</h4>
-                                <div className="flex items-center text-xs text-gray-500">
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  <span>
-                                    {new Date(event.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                            
-                            {getEventsForDay(day).length === 0 && (
-                              <div className="h-8 flex items-center justify-center">
-                                <span className="text-xs text-gray-400">Sem eventos</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="month" className="min-w-[800px] overflow-x-auto">
-                    <div className="grid grid-cols-7 gap-1">
-                      {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                        <div key={day} className="text-center font-medium p-2">
-                          {day}
-                        </div>
-                      ))}
-                      
-                      {Array.from({ length: 42 }).map((_, index) => {
-                        const firstDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
-                        const day = new Date(firstDayOfMonth);
-                        day.setDate(1 - firstDayOfMonth.getDay() + index);
-                        
-                        const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
-                        const isToday = day.toDateString() === new Date().toDateString();
-                        const hasEvents = hasEventsOnDate(day);
-                        
-                        return (
-                          <div 
-                            key={index}
-                            className={`
-                              min-h-14 p-1 border 
-                              ${isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400'}
-                              ${isToday ? 'border-primary' : 'border-gray-100'}
-                            `}
-                            onClick={() => {
-                              setSelectedDate(new Date(day));
-                              setViewMode('day');
-                            }}
-                          >
-                            <div className="flex justify-between items-center">
-                              <span className={`text-sm ${isToday ? 'font-bold text-primary' : ''}`}>
-                                {day.getDate()}
-                              </span>
-                              
-                              {hasEvents && (
-                                <div className="h-2 w-2 rounded-full bg-primary"></div>
-                              )}
-                            </div>
-                            
-                            {hasEvents && (
-                              <div className="mt-1">
-                                {getEventsForDay(day).slice(0, 2).map((event, i) => (
-                                  <div 
-                                    key={i}
-                                    className="text-xs p-1 mb-1 truncate bg-primary/10 rounded"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEventClick(event);
-                                    }}
-                                  >
-                                    {event.titulo}
-                                  </div>
-                                ))}
                                 
-                                {getEventsForDay(day).length > 2 && (
-                                  <div className="text-xs text-gray-500 text-center">
-                                    +{getEventsForDay(day).length - 2} mais
+                                {getEventsForDay(day).length === 0 && (
+                                  <div className="h-8 flex items-center justify-center">
+                                    <span className="text-xs text-gray-400">Sem eventos</span>
                                   </div>
                                 )}
                               </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
-            </div>
+                            </div>
+                          ))}
+                        </div>
+                      </TabsContent>
+                      
+                      <TabsContent value="month">
+                        <div className="grid grid-cols-7 gap-1">
+                          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+                            <div key={day} className="text-center font-medium p-2">
+                              {day}
+                            </div>
+                          ))}
+                          
+                          {Array.from({ length: 42 }).map((_, index) => {
+                            const firstDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+                            const day = new Date(firstDayOfMonth);
+                            day.setDate(1 - firstDayOfMonth.getDay() + index);
+                            
+                            const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
+                            const isToday = day.toDateString() === new Date().toDateString();
+                            const hasEvents = hasEventsOnDate(day);
+                            
+                            return (
+                              <div 
+                                key={index}
+                                className={`
+                                  min-h-14 p-1 border 
+                                  ${isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400'}
+                                  ${isToday ? 'border-primary' : 'border-gray-100'}
+                                `}
+                                onClick={() => {
+                                  setSelectedDate(new Date(day));
+                                  setViewMode('day');
+                                }}
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className={`text-sm ${isToday ? 'font-bold text-primary' : ''}`}>
+                                    {day.getDate()}
+                                  </span>
+                                  
+                                  {hasEvents && (
+                                    <div className="h-2 w-2 rounded-full bg-primary"></div>
+                                  )}
+                                </div>
+                                
+                                {hasEvents && (
+                                  <div className="mt-1">
+                                    {getEventsForDay(day).slice(0, 2).map((event, i) => (
+                                      <div 
+                                        key={i}
+                                        className="text-xs p-1 mb-1 truncate bg-primary/10 rounded"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEventClick(event);
+                                        }}
+                                      >
+                                        {event.titulo}
+                                      </div>
+                                    ))}
+                                    
+                                    {getEventsForDay(day).length > 2 && (
+                                      <div className="text-xs text-gray-500 text-center">
+                                        +{getEventsForDay(day).length - 2} mais
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
@@ -682,14 +731,14 @@ const AppointmentCalendar = () => {
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Data*</FormLabel>
-                    <div className="overflow-x-auto">
+                    <div className="flex justify-center">
                       <Calendar
                         mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
                         disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                         initialFocus
-                        className="mx-auto"
+                        className="mx-auto border rounded-md"
                       />
                     </div>
                     <FormMessage />

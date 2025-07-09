@@ -38,43 +38,47 @@ export function PatientFormCard({
         </div>
       </CardContent>
       
-      <CardFooter className="flex justify-between pt-2 gap-2">
+      <CardFooter className="flex flex-wrap gap-2 pt-2">
         <Button 
           variant="ghost" 
           size="sm"
+          className="flex-1 min-w-[80px]"
           onClick={() => onViewDetails(patient.id)}
         >
           <Eye className="h-4 w-4 mr-1" />
-          Detalhes
+          <span className="whitespace-nowrap">Detalhes</span>
         </Button>
         
         <Button 
           variant="ghost" 
           size="sm"
+          className="flex-1 min-w-[80px]"
           asChild
         >
           <Link to={`/admin/forms/edit/${patient.id}`}>
             <Pencil className="h-4 w-4 mr-1" />
-            Editar
+            <span className="whitespace-nowrap">Editar</span>
           </Link>
         </Button>
         
         <Button 
           variant="ghost" 
           size="sm"
+          className="flex-1 min-w-[80px]"
           onClick={() => onExport(patient.id)}
         >
           <FileText className="h-4 w-4 mr-1" />
-          Exportar
+          <span className="whitespace-nowrap">Exportar</span>
         </Button>
         
         <Button 
           variant="ghost" 
           size="sm"
+          className="flex-1 min-w-[80px]"
           onClick={() => onShare(patient.id)}
         >
           <Share2 className="h-4 w-4 mr-1" />
-          Compartilhar
+          <span className="whitespace-nowrap">Compartilhar</span>
         </Button>
       </CardFooter>
     </Card>

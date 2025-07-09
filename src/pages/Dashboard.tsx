@@ -5,7 +5,7 @@ import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PatientFormCard } from '@/components/PatientFormCard';
-import { supabase, Patient } from '@/lib/supabaseClient';
+import { supabase, Patient, HealthHistory, Treatment } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 import { 
   Search, 
@@ -40,6 +40,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { formatDate, getAge } from '@/lib/utils';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -49,6 +51,10 @@ const Dashboard = () => {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [patientDetails, setPatientDetails] = useState<{
+    healthHistory?: HealthHistory | null;
+    treatment?: Treatment | null;
+  }>({});
   const [shareLink, setShareLink] = useState('');
   const [counts, setCounts] = useState({
     total: 0,
@@ -56,6 +62,7 @@ const Dashboard = () => {
     enviado: 0,
     assinado: 0
   });
+  const [loadingDetails, setLoadingDetails] = useState(false);
   
   const navigate = useNavigate();
 
@@ -124,6 +131,46 @@ const Dashboard = () => {
     patient.nome_responsavel.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Carregar detalhes do paciente para visualização
+  const loadPatientDetails = async (patientId: string) => {
+    try {
+      setLoadingDetails(true);
+      
+      // Carregar histórico de saúde
+      const { data: healthData, error: healthError } = await supabase
+        .from('health_histories')
+        .select('*')
+        .eq('patient_id', patientId)
+        .single();
+      
+      if (healthError && healthError.code !== 'PGRST116') {
+        console.error("Erro ao carregar histórico de saúde:", healthError);
+      }
+      
+      // Carregar plano de tratamento
+      const { data: treatmentData, error: treatmentError } = await supabase
+        .from('treatments')
+        .select('*')
+        .eq('patient_id', patientId)
+        .single();
+      
+      if (treatmentError && treatmentError.code !== 'PGRST116') {
+        console.error("Erro ao carregar plano de tratamento:", treatmentError);
+      }
+      
+      setPatientDetails({
+        healthHistory: healthData || null,
+        treatment: treatmentData || null
+      });
+      
+    } catch (error) {
+      console.error('Erro ao carregar detalhes do paciente:', error);
+      toast.error('Erro ao carregar detalhes do paciente');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
   // Compartilhar formulário
   const handleShare = (id: string) => {
     const patient = patients.find(p => p.id === id);
@@ -136,10 +183,11 @@ const Dashboard = () => {
   };
 
   // Ver detalhes do paciente
-  const handleViewDetails = (id: string) => {
+  const handleViewDetails = async (id: string) => {
     const patient = patients.find(p => p.id === id);
     if (patient) {
       setSelectedPatient(patient);
+      await loadPatientDetails(id);
       setShowDetailsDialog(true);
     }
   };
@@ -333,54 +381,279 @@ const Dashboard = () => {
 
       {/* Diálogo de detalhes */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Paciente</DialogTitle>
           </DialogHeader>
           
-          {selectedPatient && (
-            <div className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Nome</h3>
-                  <p>{selectedPatient.nome}</p>
-                </div>
+          {loadingDetails ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : selectedPatient ? (
+            <div className="space-y-6">
+              <Tabs defaultValue="info">
+                <TabsList className="grid grid-cols-3 mb-4">
+                  <TabsTrigger value="info">Informações Básicas</TabsTrigger>
+                  <TabsTrigger value="health">Histórico de Saúde</TabsTrigger>
+                  <TabsTrigger value="treatment">Plano de Tratamento</TabsTrigger>
+                </TabsList>
                 
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Data de Nascimento</h3>
-                  <p>{new Date(selectedPatient.data_nascimento).toLocaleDateString('pt-BR')}</p>
-                </div>
+                <TabsContent value="info">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Nome</h3>
+                        <p className="font-medium">{selectedPatient.nome}</p>
+                      </div>
+                      
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Data de Nascimento</h3>
+                        <p>{formatDate(selectedPatient.data_nascimento)} ({getAge(selectedPatient.data_nascimento)} anos)</p>
+                      </div>
+                      
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Responsável</h3>
+                        <p>{selectedPatient.nome_responsavel}</p>
+                      </div>
+                      
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">CPF</h3>
+                        <p>{selectedPatient.cpf}</p>
+                      </div>
+                      
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Telefone</h3>
+                        <p>{selectedPatient.telefone}</p>
+                      </div>
+                      
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Status</h3>
+                        <p className="capitalize">
+                          {selectedPatient.status === 'rascunho' && <span className="text-yellow-600">Rascunho</span>}
+                          {selectedPatient.status === 'enviado' && <span className="text-blue-600">Enviado</span>}
+                          {selectedPatient.status === 'assinado' && <span className="text-green-600">Assinado</span>}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Endereço</h3>
+                      <p>{selectedPatient.endereco}</p>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">Observações</h3>
+                      <p>{selectedPatient.observacoes || 'Nenhuma observação'}</p>
+                    </div>
+                    
+                    {selectedPatient.assinatura_timestamp && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Data da Assinatura</h3>
+                        <p>{formatDate(selectedPatient.assinatura_timestamp)}</p>
+                      </div>
+                    )}
+                    
+                    {selectedPatient.assinatura_base64 && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Assinatura do Responsável</h3>
+                        <div className="border p-2 rounded-md bg-gray-50">
+                          <img 
+                            src={selectedPatient.assinatura_base64} 
+                            alt="Assinatura do responsável" 
+                            className="max-h-20" 
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
                 
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Responsável</h3>
-                  <p>{selectedPatient.nome_responsavel}</p>
-                </div>
+                <TabsContent value="health">
+                  {patientDetails.healthHistory ? (
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="font-medium border-b pb-1 mb-2">Informações Gerais</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Queixa Principal</h4>
+                            <p>{patientDetails.healthHistory.queixa_principal}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Tipo de Parto</h4>
+                            <p>{patientDetails.healthHistory.tipo_parto}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Aleitamento</h4>
+                            <p>{patientDetails.healthHistory.aleitamento}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Problemas na Gestação</h4>
+                            <p>{patientDetails.healthHistory.problemas_gestacao}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h3 className="font-medium border-b pb-1 mb-2">Saúde</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Alergias</h4>
+                            <p>{patientDetails.healthHistory.alergias}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Tratamento Médico</h4>
+                            <p>{patientDetails.healthHistory.tratamento_medico}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Uso de Medicamentos</h4>
+                            <p>{patientDetails.healthHistory.uso_medicamentos}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Presença de Doença</h4>
+                            <p>{patientDetails.healthHistory.presenca_doenca}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Problemas Cardíacos</h4>
+                            <p>{patientDetails.healthHistory.problemas_cardiacos}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Problemas Renais</h4>
+                            <p>{patientDetails.healthHistory.problemas_renais}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Problemas Gástricos</h4>
+                            <p>{patientDetails.healthHistory.problemas_gastricos}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Problemas Respiratórios</h4>
+                            <p>{patientDetails.healthHistory.problemas_respiratorios}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Alteração de Coagulação</h4>
+                            <p>{patientDetails.healthHistory.alteracao_coagulacao}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Internações Recentes</h4>
+                            <p>{patientDetails.healthHistory.internacoes_recentes}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Vacinação em Dia</h4>
+                            <p>{patientDetails.healthHistory.vacinacao_dia ? 'Sim' : 'Não'}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Peso Atual</h4>
+                            <p>{patientDetails.healthHistory.peso_atual}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h3 className="font-medium border-b pb-1 mb-2">Informações Odontológicas</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Idade do Primeiro Dente</h4>
+                            <p>{patientDetails.healthHistory.idade_primeiro_dente}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Anestesia Odontológica</h4>
+                            <p>{patientDetails.healthHistory.anestesia_odontologica ? 'Sim' : 'Não'}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Frequência de Escovação</h4>
+                            <p>{patientDetails.healthHistory.frequencia_escovacao}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Creme Dental</h4>
+                            <p>{patientDetails.healthHistory.creme_dental}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Contém Flúor</h4>
+                            <p>{patientDetails.healthHistory.contem_fluor ? 'Sim' : 'Não'}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Uso de Fio Dental</h4>
+                            <p>{patientDetails.healthHistory.uso_fio_dental ? 'Sim' : 'Não'}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Quem Realiza a Escovação</h4>
+                            <p>{patientDetails.healthHistory.quem_realiza_escovacao}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Uso de Mamadeira</h4>
+                            <p>{patientDetails.healthHistory.uso_mamadeira ? 'Sim' : 'Não'}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Refeições Diárias</h4>
+                            <p>{patientDetails.healthHistory.refeicoes_diarias}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Fonte de Açúcar</h4>
+                            <p>{patientDetails.healthHistory.fonte_acucar}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Hábito de Sucção</h4>
+                            <p>{patientDetails.healthHistory.habito_succao ? 'Sim' : 'Não'}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Roer Unhas</h4>
+                            <p>{patientDetails.healthHistory.roer_unhas ? 'Sim' : 'Não'}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">Dormir de Boca Aberta</h4>
+                            <p>{patientDetails.healthHistory.dormir_boca_aberta ? 'Sim' : 'Não'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-6 text-center">
+                      <p className="text-gray-500">Nenhum histórico de saúde cadastrado para este paciente.</p>
+                    </div>
+                  )}
+                </TabsContent>
                 
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">CPF</h3>
-                  <p>{selectedPatient.cpf}</p>
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Telefone</h3>
-                  <p>{selectedPatient.telefone}</p>
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Status</h3>
-                  <p className="capitalize">{selectedPatient.status}</p>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Endereço</h3>
-                <p>{selectedPatient.endereco}</p>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Observações</h3>
-                <p>{selectedPatient.observacoes || 'Nenhuma observação'}</p>
-              </div>
+                <TabsContent value="treatment">
+                  {patientDetails.treatment && patientDetails.treatment.plano_tratamento ? (
+                    <div className="space-y-4">
+                      <h3 className="font-medium border-b pb-1 mb-2">Plano de Tratamento</h3>
+                      <div className="whitespace-pre-line bg-gray-50 p-4 rounded-md">
+                        {patientDetails.treatment.plano_tratamento}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-6 text-center">
+                      <p className="text-gray-500">Nenhum plano de tratamento cadastrado para este paciente.</p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
               
               <div className="flex justify-between pt-4 border-t">
                 <Button 
@@ -413,6 +686,10 @@ const Dashboard = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
+            </div>
+          ) : (
+            <div className="py-6 text-center">
+              <p className="text-gray-500">Paciente não encontrado.</p>
             </div>
           )}
         </DialogContent>
