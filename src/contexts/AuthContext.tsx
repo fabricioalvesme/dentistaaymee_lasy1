@@ -24,48 +24,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function getInitialSession() {
-      setLoading(true);
-      
-      const { data, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('Erro ao carregar sessão:', error);
-        toast.error('Erro ao carregar sessão');
-      }
-      
-      setSession(data.session);
-      setUser(data.session?.user || null);
-
-      // Verifica se o usuário é admin
-      if (data.session?.user) {
-        const { data: userData } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.session.user.id)
-          .single();
+      try {
+        setLoading(true);
         
-        setIsAdmin(userData?.role === 'admin');
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Erro ao carregar sessão:', error);
+          toast.error('Erro ao carregar sessão');
+          return;
+        }
+        
+        setSession(data.session);
+        setUser(data.session?.user || null);
+
+        // Verifica se o usuário é admin
+        if (data.session?.user) {
+          const { data: userData } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', data.session.user.id)
+            .single();
+          
+          setIsAdmin(userData?.role === 'admin');
+        }
+      } catch (error) {
+        console.error('Erro ao inicializar sessão:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     }
 
     getInitialSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.id);
+        
         setSession(session);
         setUser(session?.user || null);
 
         // Verifica se o usuário é admin
         if (session?.user) {
-          const { data: userData } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-          
-          setIsAdmin(userData?.role === 'admin');
+          try {
+            const { data: userData, error } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (error) {
+              console.error('Erro ao verificar perfil:', error);
+            }
+            
+            setIsAdmin(userData?.role === 'admin');
+          } catch (error) {
+            console.error('Erro ao verificar perfil:', error);
+          }
         } else {
           setIsAdmin(false);
         }
@@ -81,28 +96,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      setLoading(true);
+      console.log("Tentando fazer login com:", email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
       
       if (error) {
-        throw error;
+        console.error('Erro no login:', error);
+        toast.error(error.message || 'Falha ao fazer login');
+        return;
       }
       
+      console.log("Login bem-sucedido:", data.user?.id);
       toast.success('Login realizado com sucesso!');
+      
+      // Verificar se é admin
+      if (data.user) {
+        const { data: userData } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+        
+        setIsAdmin(userData?.role === 'admin');
+      }
+      
       navigate('/admin/dashboard');
     } catch (error: any) {
-      toast.error(error.message || 'Falha ao fazer login');
       console.error('Erro ao fazer login:', error);
+      toast.error(error.message || 'Falha ao fazer login');
+    } finally {
+      setLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      setLoading(true);
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Erro ao fazer logout:', error);
+        toast.error('Falha ao fazer logout');
+        return;
+      }
+      
       toast.success('Logout realizado com sucesso!');
       navigate('/');
     } catch (error: any) {
-      toast.error('Falha ao fazer logout');
       console.error('Erro ao fazer logout:', error);
+      toast.error('Falha ao fazer logout');
+    } finally {
+      setLoading(false);
     }
   };
 
