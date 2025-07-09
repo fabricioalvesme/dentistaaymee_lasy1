@@ -33,6 +33,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Validação do formulário
 const patientFormSchema = z.object({
@@ -46,8 +47,12 @@ const patientFormSchema = z.object({
   observacoes: z.string().optional(),
   
   // Termo de Atendimento
-  local: z.string().default('Morrinhos'),
+  local: z.string().default('Morrinhos-GO'),
   data_termo: z.string().min(1, 'Data é obrigatória'),
+  termo_aceite: z.boolean().refine(val => val === true, {
+    message: 'Você precisa aceitar o termo para continuar',
+  }),
+  assinatura_responsavel: z.string().min(1, 'Assinatura é obrigatória'),
   
   // Histórico de Saúde
   queixa_principal: z.string().min(1, 'Queixa principal é obrigatória'),
@@ -131,8 +136,10 @@ const NewPatientForm = () => {
       telefone: '',
       observacoes: '',
       
-      local: 'Morrinhos',
+      local: 'Morrinhos-GO',
       data_termo: new Date().toISOString().split('T')[0],
+      termo_aceite: false,
+      assinatura_responsavel: '',
       
       queixa_principal: '',
       tipo_parto: 'Natural',
@@ -175,6 +182,7 @@ const NewPatientForm = () => {
   const onSubmit = async (data: PatientFormValues, asDraft: boolean = false) => {
     try {
       setSaving(true);
+      console.log("Iniciando salvamento do formulário:", data);
       
       // Preparar dados para o Supabase
       const patientData = {
@@ -186,8 +194,12 @@ const NewPatientForm = () => {
         telefone: data.telefone,
         observacoes: data.observacoes || '',
         status: asDraft ? 'rascunho' : 'enviado',
+        assinatura_base64: data.assinatura_responsavel || null,
+        assinatura_timestamp: new Date().toISOString(),
         assinatura_dentista: data.assinatura_dentista || null,
       };
+      
+      console.log("Dados do paciente preparados:", patientData);
       
       // Inserir paciente
       const { data: patientResult, error: patientError } = await supabase
@@ -196,8 +208,12 @@ const NewPatientForm = () => {
         .select('id')
         .single();
       
-      if (patientError) throw patientError;
+      if (patientError) {
+        console.error("Erro ao inserir paciente:", patientError);
+        throw patientError;
+      }
       
+      console.log("Paciente inserido com sucesso:", patientResult);
       const patientId = patientResult.id;
       
       // Histórico de saúde
@@ -256,14 +272,22 @@ const NewPatientForm = () => {
         peso_atual: data.peso_atual,
       };
       
+      console.log("Dados de histórico de saúde preparados");
+      
       const { error: healthError } = await supabase
         .from('health_histories')
         .insert([healthData]);
       
-      if (healthError) throw healthError;
+      if (healthError) {
+        console.error("Erro ao inserir histórico de saúde:", healthError);
+        throw healthError;
+      }
+      
+      console.log("Histórico de saúde inserido com sucesso");
       
       // Plano de tratamento
       if (data.plano_tratamento) {
+        console.log("Preparando para inserir plano de tratamento");
         const { error: treatmentError } = await supabase
           .from('treatments')
           .insert([{
@@ -271,10 +295,16 @@ const NewPatientForm = () => {
             plano_tratamento: data.plano_tratamento
           }]);
         
-        if (treatmentError) throw treatmentError;
+        if (treatmentError) {
+          console.error("Erro ao inserir plano de tratamento:", treatmentError);
+          throw treatmentError;
+        }
+        
+        console.log("Plano de tratamento inserido com sucesso");
       }
       
       // Termo de atendimento
+      console.log("Preparando para inserir termo de consentimento");
       const { error: consentError } = await supabase
         .from('consent_forms')
         .insert([{
@@ -283,7 +313,12 @@ const NewPatientForm = () => {
           data: data.data_termo
         }]);
       
-      if (consentError) throw consentError;
+      if (consentError) {
+        console.error("Erro ao inserir termo de consentimento:", consentError);
+        throw consentError;
+      }
+      
+      console.log("Termo de consentimento inserido com sucesso");
       
       if (asDraft) {
         toast.success('Rascunho salvo com sucesso!');
@@ -318,7 +353,7 @@ const NewPatientForm = () => {
     if (activeTab === 'dados-pessoais') {
       fieldsToValidate = ['nome', 'data_nascimento', 'endereco', 'nome_responsavel', 'cpf', 'telefone'];
     } else if (activeTab === 'termo-atendimento') {
-      fieldsToValidate = ['local', 'data_termo'];
+      fieldsToValidate = ['local', 'data_termo', 'termo_aceite', 'assinatura_responsavel'];
     } else if (activeTab === 'historico-saude') {
       fieldsToValidate = [
         'queixa_principal', 'tipo_parto', 'aleitamento', 
@@ -336,7 +371,7 @@ const NewPatientForm = () => {
   };
 
   const termoAtendimentoText = `
-    <p class="mb-4">Eu, responsável pelo(a) paciente, autorizo a realização do tratamento odontológico proposto pela Dra. Aymée Frauzino.</p>
+    <p class="mb-4">Declaro que a Dra. Aymée Ávila Frauzino me explicou os propósitos, riscos, custos e alternativas do tratamento odontológico proposto. Estou ciente de que o sucesso depende da resposta biológica do organismo e das técnicas empregadas. Comprometo-me a seguir as orientações e arcar com os custos estipulados.</p>
     
     <p class="mb-4">Declaro ter sido informado(a) sobre:</p>
     
@@ -554,6 +589,41 @@ const NewPatientForm = () => {
                     )}
                   />
                 </div>
+                
+                <FormField
+                  control={form.control}
+                  name="termo_aceite"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-4 border">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Li e concordo com o termo de atendimento*
+                        </FormLabel>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="assinatura_responsavel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assinatura do Responsável*</FormLabel>
+                      <FormControl>
+                        <SignaturePad onChange={field.onChange} initialValue={field.value} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 
                 <div className="flex justify-between">
                   <Button 

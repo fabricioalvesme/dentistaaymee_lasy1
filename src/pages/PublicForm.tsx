@@ -8,7 +8,8 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
-import { Loader2, FileCheck } from 'lucide-react';
+import { Loader2, FileCheck, Check } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,7 @@ const PublicForm = () => {
   const [treatment, setTreatment] = useState<Treatment | null>(null);
   const [loading, setLoading] = useState(true);
   const [signature, setSignature] = useState('');
+  const [termoAceite, setTermoAceite] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +45,7 @@ const PublicForm = () => {
 
       try {
         setLoading(true);
+        console.log("Carregando dados do formulário ID:", patientId);
         
         // Carregar dados do paciente
         const { data: patientData, error: patientError } = await supabase
@@ -51,7 +54,10 @@ const PublicForm = () => {
           .eq('id', patientId)
           .single();
         
-        if (patientError) throw patientError;
+        if (patientError) {
+          console.error("Erro ao carregar paciente:", patientError);
+          throw patientError;
+        }
         
         if (!patientData) {
           setError('Formulário não encontrado');
@@ -66,6 +72,7 @@ const PublicForm = () => {
           return;
         }
         
+        console.log("Dados do paciente carregados:", patientData.nome);
         setPatient(patientData);
         
         // Carregar histórico de saúde
@@ -75,8 +82,12 @@ const PublicForm = () => {
           .eq('patient_id', patientId)
           .single();
         
-        if (healthError && healthError.code !== 'PGRST116') throw healthError;
+        if (healthError && healthError.code !== 'PGRST116') {
+          console.error("Erro ao carregar histórico de saúde:", healthError);
+          throw healthError;
+        }
         
+        console.log("Histórico de saúde carregado:", healthData);
         setHealthHistory(healthData);
         
         // Carregar plano de tratamento
@@ -86,8 +97,12 @@ const PublicForm = () => {
           .eq('patient_id', patientId)
           .single();
         
-        if (treatmentError && treatmentError.code !== 'PGRST116') throw treatmentError;
+        if (treatmentError && treatmentError.code !== 'PGRST116') {
+          console.error("Erro ao carregar plano de tratamento:", treatmentError);
+          throw treatmentError;
+        }
         
+        console.log("Plano de tratamento carregado:", treatmentData);
         setTreatment(treatmentData);
       } catch (error) {
         console.error('Erro ao carregar formulário:', error);
@@ -107,6 +122,11 @@ const PublicForm = () => {
       return;
     }
     
+    if (!termoAceite) {
+      toast.error('Por favor, confirme que leu e concorda com o termo de atendimento');
+      return;
+    }
+    
     if (!patientId) {
       toast.error('ID do formulário não fornecido');
       return;
@@ -114,6 +134,7 @@ const PublicForm = () => {
 
     try {
       setSaving(true);
+      console.log("Enviando assinatura para o formulário ID:", patientId);
       
       // Atualizar status do paciente e salvar assinatura
       const { error } = await supabase
@@ -125,7 +146,12 @@ const PublicForm = () => {
         })
         .eq('id', patientId);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Erro ao atualizar paciente:", error);
+        throw error;
+      }
+      
+      console.log("Assinatura salva com sucesso");
       
       // Mostrar diálogo de sucesso
       setShowSuccessDialog(true);
@@ -254,8 +280,7 @@ const PublicForm = () => {
                 
                 <div className="bg-gray-50 p-4 rounded-md mb-4">
                   <p className="mb-4">
-                    Eu, {patient.nome_responsavel}, responsável pelo(a) paciente {patient.nome}, 
-                    autorizo a realização do tratamento odontológico proposto pela Dra. Aymée Frauzino.
+                    Declaro que a Dra. Aymée Ávila Frauzino me explicou os propósitos, riscos, custos e alternativas do tratamento odontológico proposto. Estou ciente de que o sucesso depende da resposta biológica do organismo e das técnicas empregadas. Comprometo-me a seguir as orientações e arcar com os custos estipulados.
                   </p>
                   
                   <p className="mb-4">Declaro ter sido informado(a) sobre:</p>
@@ -285,6 +310,24 @@ const PublicForm = () => {
                     antes da realização dos procedimentos.
                   </p>
                 </div>
+                
+                <div className="mt-6">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Checkbox
+                      id="termoAceite"
+                      checked={termoAceite}
+                      onCheckedChange={(checked) => {
+                        setTermoAceite(checked as boolean);
+                      }}
+                    />
+                    <label
+                      htmlFor="termoAceite"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Li e concordo com o termo de atendimento
+                    </label>
+                  </div>
+                </div>
               </section>
               
               {/* Plano de Tratamento */}
@@ -313,7 +356,7 @@ const PublicForm = () => {
                 
                 <Button 
                   className="w-full mt-6" 
-                  disabled={!signature || saving}
+                  disabled={!signature || !termoAceite || saving}
                   onClick={handleSubmit}
                 >
                   {saving ? (
@@ -348,12 +391,28 @@ const PublicForm = () => {
           
           <div className="bg-green-50 p-4 rounded-md my-4">
             <p className="text-green-800">
-              Seu formulário foi assinado e enviado para a Dra. Aymée Frauzino. Você pode fechar esta página agora.
+              Seu formulário foi assinado e enviado para a Dra. Aymée Frauzino.
             </p>
           </div>
           
+          <div className="mt-4">
+            <p className="text-sm mb-2">Clique no botão abaixo para avisar a Dra. Aymée via WhatsApp:</p>
+            <Button 
+              className="w-full"
+              onClick={() => {
+                window.location.href = "https://api.whatsapp.com/send/?phone=556492527548&text=Pronto,%20acabei%20de%20assinar%20o%20documento.";
+              }}
+            >
+              <Check className="mr-2 h-4 w-4" />
+              Avisar via WhatsApp
+            </Button>
+          </div>
+          
           <DialogFooter>
-            <Button onClick={() => navigate('/')}>
+            <Button 
+              variant="outline"
+              onClick={() => navigate('/')}
+            >
               Voltar para a Página Inicial
             </Button>
           </DialogFooter>

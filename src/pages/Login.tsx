@@ -45,11 +45,26 @@ const Login = () => {
   const onSubmit = async (data: LoginFormValues) => {
     try {
       setIsLoading(true);
-      await signIn(data.email, data.password);
-      // O redirecionamento é feito no contexto de autenticação
-    } catch (error) {
+      console.log("Tentando fazer login com:", data.email);
+      
+      // Tentativa de login
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+      
+      if (error) {
+        console.error("Erro na autenticação:", error);
+        throw error;
+      }
+      
+      console.log("Login bem-sucedido, usuário:", authData.user?.id);
+      
+      toast.success('Login realizado com sucesso!');
+      navigate('/admin/dashboard');
+    } catch (error: any) {
       console.error('Erro ao fazer login:', error);
-    } finally {
+      toast.error(error.message || 'Falha ao fazer login');
       setIsLoading(false);
     }
   };
@@ -61,22 +76,24 @@ const Login = () => {
 
     try {
       setIsCreatingAdmin(true);
+      console.log("Iniciando criação do usuário admin");
       
-      // Verificar se o usuário já existe
-      const { data: existingUsers, error: checkError } = await supabase
-        .from('auth.users')
-        .select('email')
-        .eq('email', adminEmail)
-        .limit(1);
+      // Verificar se já existe um usuário com este email
+      const { data: authData, error: checkError } = await supabase.auth.signInWithPassword({
+        email: adminEmail,
+        password: adminPassword,
+      });
       
-      if (checkError) {
-        // Não podemos verificar diretamente a tabela auth.users, então vamos apenas tentar criar
-        console.log('Verificando se o usuário já existe...');
-      } else if (existingUsers && existingUsers.length > 0) {
-        toast.error('Usuário admin já existe!');
+      if (!checkError) {
+        console.log("Usuário já existe e credenciais estão corretas");
+        toast.info('Usuário admin já existe! Credenciais foram preenchidas automaticamente.');
+        form.setValue('email', adminEmail);
+        form.setValue('password', adminPassword);
         setIsCreatingAdmin(false);
         return;
       }
+      
+      console.log("Usuário não existe ou credenciais incorretas, tentando criar");
       
       // Criar o usuário no Auth
       const { data, error } = await supabase.auth.signUp({
@@ -89,7 +106,12 @@ const Login = () => {
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Erro ao criar usuário:", error);
+        throw error;
+      }
+      
+      console.log("Usuário criado com sucesso:", data.user?.id);
       
       // Criar perfil na tabela profiles
       const { error: profileError } = await supabase
@@ -103,9 +125,14 @@ const Login = () => {
           }
         ]);
       
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("Erro ao criar perfil:", profileError);
+        throw profileError;
+      }
       
-      toast.success('Usuário admin criado com sucesso! Email: ay_frauzino@hotmail.com, Senha: Frauzino102');
+      console.log("Perfil criado com sucesso");
+      
+      toast.success('Usuário admin criado com sucesso! Credenciais preenchidas automaticamente.');
       
       // Preencher o formulário com as credenciais
       form.setValue('email', adminEmail);
