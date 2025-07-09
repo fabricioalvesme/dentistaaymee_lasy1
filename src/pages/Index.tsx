@@ -9,11 +9,12 @@ import {
   Smile, 
   Sparkles, 
   Heart, 
-  Star,  // Usando Star em vez de Tooth
+  Star,
   Syringe, 
   Baby, 
   Scissors,
-  Sun
+  Sun,
+  MessageCircle
 } from 'lucide-react';
 
 const Index = () => {
@@ -39,49 +40,60 @@ const Index = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Serviços
+  // Serviços com links personalizados para WhatsApp
   const services = [
     {
       title: 'Atendimento para toda a família',
       description: 'Cuidados odontológicos para pacientes de todas as idades com abordagem humanizada.',
-      icon: <Smile className="h-8 w-8" />
+      icon: <Smile className="h-8 w-8" />,
+      whatsappLink: "https://api.whatsapp.com/send?phone=556492527548&text=Olá%2C%20gostaria%20de%20agendar%20um%20atendimento%20para%20minha%20família%20com%20a%20Dra.%20Aymée."
     },
     {
       title: 'Prevenção e profilaxia',
       description: 'Limpeza profissional e orientação preventiva para manter a saúde bucal em dia.',
-      icon: <Sparkles className="h-8 w-8" />
+      icon: <Sparkles className="h-8 w-8" />,
+      whatsappLink: "https://api.whatsapp.com/send?phone=556492527548&text=Olá%2C%20vim%20do%20site%20e%20quero%20agendar%20uma%20limpeza%20e%20orientação%20preventiva."
     },
     {
       title: 'Cirurgia de freio labial ou lingual',
       description: 'Procedimento para corrigir limitações no movimento da língua ou lábio.',
-      icon: <Scissors className="h-8 w-8" />
+      icon: <Scissors className="h-8 w-8" />,
+      whatsappLink: "https://api.whatsapp.com/send?phone=556492527548&text=Olá%2C%20tenho%20interesse%20em%20fazer%20uma%20cirurgia%20de%20freio%20labial%20ou%20lingual."
     },
     {
       title: 'Restaurações dentárias',
       description: 'Recuperação estética e funcional de dentes com cáries ou fraturas.',
-      icon: <Star className="h-8 w-8" />  // Alterado de Tooth para Star
+      icon: <Star className="h-8 w-8" />,
+      whatsappLink: "https://api.whatsapp.com/send?phone=556492527548&text=Olá%2C%20preciso%20de%20restaurações%20dentárias%20e%20gostaria%20de%20agendar%20uma%20consulta."
     },
     {
       title: 'Tratamento de canal infantil',
       description: 'Procedimentos endodônticos adaptados para crianças com segurança e conforto.',
-      icon: <Syringe className="h-8 w-8" />
+      icon: <Syringe className="h-8 w-8" />,
+      whatsappLink: "https://api.whatsapp.com/send?phone=556492527548&text=Olá%2C%20gostaria%20de%20informações%20sobre%20tratamento%20de%20canal%20infantil."
     },
     {
       title: 'Pré-natal odontológico',
       description: 'Acompanhamento especializado para gestantes, garantindo saúde bucal para mãe e bebê.',
-      icon: <Baby className="h-8 w-8" />
+      icon: <Baby className="h-8 w-8" />,
+      whatsappLink: "https://api.whatsapp.com/send?phone=556492527548&text=Olá%2C%20quero%20saber%20mais%20sobre%20o%20pré-natal%20odontológico."
     },
     {
       title: 'Cirurgias orais menores',
       description: 'Extrações e outros procedimentos cirúrgicos realizados com técnicas minimamente invasivas.',
-      icon: <Heart className="h-8 w-8" />
+      icon: <Heart className="h-8 w-8" />,
+      whatsappLink: "https://api.whatsapp.com/send?phone=556492527548&text=Olá%2C%20tenho%20interesse%20em%20realizar%20uma%20cirurgia%20oral%20menor."
     },
     {
       title: 'Clareamento dental',
       description: 'Tratamentos estéticos para um sorriso mais branco e radiante de forma segura.',
-      icon: <Sun className="h-8 w-8" />
+      icon: <Sun className="h-8 w-8" />,
+      whatsappLink: "https://api.whatsapp.com/send?phone=556492527548&text=Vim%20do%20seu%20site%20https%3A%2F%2Fdraaymeefrauzino.com%20e%20quero%20fazer%20clareamento%20dental."
     }
   ];
+
+  // URL da imagem da Dra. Aymée
+  const doctorImageUrl = "/Dra-Aymee-Frauzino-Morrinhos-Goias.jpeg";
 
   return (
     <>
@@ -146,19 +158,13 @@ const Index = () => {
           
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="md:w-1/3 flex justify-center">
-              {/* Imagem placeholder - substitua pela imagem real da dentista */}
+              {/* Imagem da Dra. Aymée */}
               <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-primary/20">
-                {/* Se houver uma imagem real */}
-                {/* <img 
-                  src="/images/dra-aymee-profile.jpg" 
-                  alt="Dra. Aymée Frauzino" 
+                <img 
+                  src={doctorImageUrl} 
+                  alt="Dra. Aymée Frauzino - Odontopediatra em Morrinhos-GO" 
                   className="w-full h-full object-cover"
-                /> */}
-                
-                {/* Placeholder */}
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-400">
-                  <span>Foto da Dra. Aymée</span>
-                </div>
+                />
               </div>
             </div>
             
@@ -195,12 +201,23 @@ const Index = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {services.map((service, index) => (
-              <ServiceCard 
-                key={index}
-                title={service.title}
-                description={service.description}
-                icon={service.icon}
-              />
+              <div key={index} className="flex flex-col h-full">
+                <ServiceCard 
+                  title={service.title}
+                  description={service.description}
+                  icon={service.icon}
+                  className="flex-1"
+                />
+                <a 
+                  href={service.whatsappLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="mt-3 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md transition-colors"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  <span>Agendar via WhatsApp</span>
+                </a>
+              </div>
             ))}
           </div>
         </div>

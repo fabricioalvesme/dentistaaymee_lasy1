@@ -4,13 +4,14 @@ import { useTheme } from '@/contexts/ThemeContext';
 export function Footer() {
   const { settings } = useTheme();
   
-  // Informações de contato
+  // Informações de contato atualizadas
   const whatsapp = "556492527548";
   const instagram = "@dra.aymeefrauzino_";
-  const endereco = "Av. Exemplo, 123 - Centro, Morrinhos - GO";
-  const cnpj = "00.000.000/0001-00";
+  const instagramUrl = "https://www.instagram.com/dra.aymeefrauzino_";
+  const endereco = "Rua Maestro Vicente José Vieira, 358 – Morrinhos, GO – CEP 75650-270";
+  const cnpj = "59.753.464/0001-11";
   
-  // Horários
+  // Horários atualizados
   const horarios = [
     "Segunda a Sexta: 8h às 18h",
     "Sábado: 8h às 12h",
@@ -51,7 +52,7 @@ export function Footer() {
               </li>
               <li>
                 <a 
-                  href={`https://instagram.com/${instagram.replace('@', '')}`} 
+                  href={instagramUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center text-gray-600 hover:text-primary transition-colors"
