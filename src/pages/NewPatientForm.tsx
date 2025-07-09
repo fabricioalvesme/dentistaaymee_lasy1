@@ -24,7 +24,7 @@ import {
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Copy, Share2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -123,6 +123,8 @@ const NewPatientForm = () => {
   const [saving, setSaving] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [newPatientId, setNewPatientId] = useState<string | null>(null);
+  const [formLink, setFormLink] = useState('');
+  const [copySuccess, setCopySuccess] = useState(false);
   const navigate = useNavigate();
 
   const form = useForm<PatientFormValues>({
@@ -325,6 +327,8 @@ const NewPatientForm = () => {
         navigate('/admin/dashboard');
       } else {
         setNewPatientId(patientId);
+        const link = `${window.location.origin}/public/form?id=${patientId}`;
+        setFormLink(link);
         setShowSuccessDialog(true);
       }
     } catch (error) {
@@ -370,37 +374,12 @@ const NewPatientForm = () => {
     }
   };
 
-  // Função para copiar texto para área de transferência com fallback
-  const copyToClipboard = (text: string) => {
+  // Função de cópia segura que sempre usa o método fallback
+  const copyToClipboard = () => {
     try {
-      // Método 1: Usar a Clipboard API moderna
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text)
-          .then(() => {
-            toast.success('Link copiado para a área de transferência');
-          })
-          .catch(err => {
-            console.error("Erro ao usar navigator.clipboard:", err);
-            // Se falhar, vai para o método de fallback
-            copyToClipboardFallback(text);
-          });
-      } else {
-        // Se a API não estiver disponível, usa o método de fallback
-        copyToClipboardFallback(text);
-      }
-    } catch (err) {
-      console.error("Erro ao copiar texto:", err);
-      // Tenta o método de fallback em caso de erro
-      copyToClipboardFallback(text);
-    }
-  };
-
-  // Método alternativo para copiar texto usando seleção
-  const copyToClipboardFallback = (text: string) => {
-    try {
-      // Cria um elemento temporário
+      // Sempre usamos o método fallback que é mais compatível com iframes
       const textArea = document.createElement('textarea');
-      textArea.value = text;
+      textArea.value = formLink;
       
       // Configura o elemento para não ser visível
       textArea.style.position = 'fixed';
@@ -416,13 +395,31 @@ const NewPatientForm = () => {
       document.body.removeChild(textArea);
       
       if (successful) {
+        setCopySuccess(true);
         toast.success('Link copiado para a área de transferência');
+        // Reset o status após 2 segundos
+        setTimeout(() => setCopySuccess(false), 2000);
       } else {
         toast.error('Não foi possível copiar o link automaticamente. Por favor, copie-o manualmente.');
       }
     } catch (err) {
-      console.error("Erro no método fallback:", err);
+      console.error("Erro ao copiar texto:", err);
       toast.error('Não foi possível copiar o link. Por favor, copie-o manualmente.');
+    }
+  };
+
+  // Compartilhar no WhatsApp
+  const shareToWhatsApp = () => {
+    try {
+      if (!formLink) return;
+      
+      const encodedText = encodeURIComponent(`Formulário para assinatura: ${formLink}`);
+      const whatsappUrl = `https://wa.me/?text=${encodedText}`;
+      
+      window.open(whatsappUrl, '_blank');
+    } catch (error) {
+      console.error("Erro ao compartilhar no WhatsApp:", error);
+      toast.error("Não foi possível abrir o WhatsApp. Tente copiar o link manualmente.");
     }
   };
 
@@ -1100,22 +1097,40 @@ const NewPatientForm = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex items-center space-x-2 mt-4">
-            <Input 
-              value={`${window.location.origin}/public/form?id=${newPatientId}`}
-              readOnly 
-              onClick={(e) => (e.target as HTMLInputElement).select()}
-            />
-            <Button 
-              onClick={() => {
-                const linkText = `${window.location.origin}/public/form?id=${newPatientId}`;
-                copyToClipboard(linkText);
-              }} 
-              variant="secondary"
-            >
-              Copiar
-            </Button>
+          <div className="mt-4">
+            <p className="text-sm text-gray-500 mb-2">Link para assinatura:</p>
+            <div className="flex flex-col space-y-2">
+              <Input 
+                value={formLink}
+                readOnly 
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              
+              <div className="flex space-x-2">
+                <Button 
+                  onClick={copyToClipboard} 
+                  variant="secondary"
+                  className="flex-1"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  {copySuccess ? 'Copiado!' : 'Copiar Link'}
+                </Button>
+                
+                <Button 
+                  onClick={shareToWhatsApp}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <Share2 className="h-4 w-4 mr-2" />
+                  WhatsApp
+                </Button>
+              </div>
+            </div>
           </div>
+          
+          <p className="text-sm text-gray-500 mt-2">
+            Compartilhe este link com o paciente para que ele possa assinar o formulário.
+          </p>
           
           <DialogFooter className="mt-4">
             <Button onClick={() => {
