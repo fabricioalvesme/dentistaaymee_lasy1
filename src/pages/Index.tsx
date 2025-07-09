@@ -92,8 +92,15 @@ const Index = () => {
     }
   ];
 
-  // URL da imagem da Dra. Aymée
-  const doctorImageUrl = "/Dra-Aymee-Frauzino-Morrinhos-Goias.png";
+  // Foto atual da Dra. Aymée
+  const doctorImageUrl = "/photo_2025-07-09_19-18-00.jpg";
+
+  // Imagens de consultório
+  const consultorioImagens = {
+    imagem1: "/consultorio1.jpg",
+    imagem2: "/consultorio2.jpg",
+    imagem3: "/consultorio3.jpg"
+  };
 
   return (
     <>
@@ -137,21 +144,21 @@ const Index = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-md">
                 <div className="col-span-1 md:col-span-2">
                   <img 
-                    src="/consultorio1.jpg" 
+                    src={consultorioImagens.imagem1} 
                     alt="Consultório Odontopediátrico da Dra. Aymée Frauzino" 
                     className="w-full h-48 object-cover rounded-lg shadow-md"
                   />
                 </div>
                 <div>
                   <img 
-                    src="/consultorio2.jpg" 
+                    src={consultorioImagens.imagem2} 
                     alt="Atendimento infantil odontológico" 
                     className="w-full h-40 object-cover rounded-lg shadow-md"
                   />
                 </div>
                 <div>
                   <img 
-                    src="/consultorio3.jpg" 
+                    src={consultorioImagens.imagem3} 
                     alt="Ambiente do consultório infantil" 
                     className="w-full h-40 object-cover rounded-lg shadow-md"
                   />
