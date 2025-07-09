@@ -9,7 +9,7 @@ import {
   Smile, 
   Sparkles, 
   Heart, 
-  Tooth, 
+  Star, // Substituindo Tooth por Star
   Syringe, 
   Baby, 
   Scissors,
@@ -59,7 +59,7 @@ const Index = () => {
     {
       title: 'Restaurações dentárias',
       description: 'Recuperação estética e funcional de dentes com cáries ou fraturas.',
-      icon: <Tooth className="h-8 w-8" />
+      icon: <Star className="h-8 w-8" /> // Mudado de Tooth para Star
     },
     {
       title: 'Tratamento de canal infantil',
