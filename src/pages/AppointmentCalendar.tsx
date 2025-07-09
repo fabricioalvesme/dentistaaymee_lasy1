@@ -447,171 +447,173 @@ const AppointmentCalendar = () => {
                   </h2>
                 </div>
                 
-                <TabsContent value="day" className="mt-0">
-                  {getEventsForDay(selectedDate).length === 0 ? (
-                    <div className="text-center py-12 bg-gray-50 rounded-md">
-                      <p className="text-gray-500">Nenhum evento agendado para este dia</p>
-                      <Button 
-                        variant="link" 
-                        onClick={handleAddEvent}
-                        className="mt-2"
-                      >
-                        Adicionar Evento
-                      </Button>
+                <Tabs value={viewMode} className="mt-0">
+                  <TabsContent value="day">
+                    {getEventsForDay(selectedDate).length === 0 ? (
+                      <div className="text-center py-12 bg-gray-50 rounded-md">
+                        <p className="text-gray-500">Nenhum evento agendado para este dia</p>
+                        <Button 
+                          variant="link" 
+                          onClick={handleAddEvent}
+                          className="mt-2"
+                        >
+                          Adicionar Evento
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {generateTimeSlots().map(timeSlot => {
+                          const [hours, minutes] = timeSlot.split(':').map(Number);
+                          const slotDate = new Date(selectedDate);
+                          slotDate.setHours(hours, minutes, 0, 0);
+                          
+                          const eventsAtTime = getEventsForDay(selectedDate).filter(event => {
+                            const eventStart = new Date(event.data_hora_inicio);
+                            const eventEnd = new Date(event.data_hora_fim);
+                            return eventStart <= slotDate && eventEnd > slotDate;
+                          });
+                          
+                          if (eventsAtTime.length === 0) return null;
+                          
+                          return (
+                            <div key={timeSlot} className="flex">
+                              <div className="w-16 text-right pr-4 text-gray-500">
+                                {timeSlot}
+                              </div>
+                              
+                              <div className="flex-1 space-y-2">
+                                {eventsAtTime.map(event => (
+                                  <div
+                                    key={event.id}
+                                    className="p-3 rounded-md bg-primary/10 border-l-4 border-primary cursor-pointer hover:bg-primary/20"
+                                    onClick={() => handleEventClick(event)}
+                                  >
+                                    <h3 className="font-medium">{event.titulo}</h3>
+                                    <div className="flex items-center text-sm text-gray-500">
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      <span>
+                                        {new Date(event.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - 
+                                        {new Date(event.data_hora_fim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </TabsContent>
+                  
+                  <TabsContent value="week">
+                    <div className="grid grid-cols-7 gap-2">
+                      {generateWeekDays(selectedDate).map((day, index) => (
+                        <div key={index} className="text-center">
+                          <div className={`
+                            p-2 rounded-md mb-2 
+                            ${new Date().toDateString() === day.toDateString() ? 'bg-primary text-white' : 'bg-gray-100'}
+                          `}>
+                            <p className="font-medium">{day.toLocaleDateString('pt-BR', { weekday: 'short' })}</p>
+                            <p>{day.getDate()}</p>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {getEventsForDay(day).map(event => (
+                              <div
+                                key={event.id}
+                                className="p-2 rounded-md bg-primary/10 border-l-4 border-primary cursor-pointer hover:bg-primary/20 text-left"
+                                onClick={() => handleEventClick(event)}
+                              >
+                                <h4 className="font-medium text-sm truncate">{event.titulo}</h4>
+                                <div className="flex items-center text-xs text-gray-500">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  <span>
+                                    {new Date(event.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {getEventsForDay(day).length === 0 && (
+                              <div className="h-8 flex items-center justify-center">
+                                <span className="text-xs text-gray-400">Sem eventos</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {generateTimeSlots().map(timeSlot => {
-                        const [hours, minutes] = timeSlot.split(':').map(Number);
-                        const slotDate = new Date(selectedDate);
-                        slotDate.setHours(hours, minutes, 0, 0);
+                  </TabsContent>
+                  
+                  <TabsContent value="month">
+                    <div className="grid grid-cols-7 gap-1">
+                      {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+                        <div key={day} className="text-center font-medium p-2">
+                          {day}
+                        </div>
+                      ))}
+                      
+                      {Array.from({ length: 42 }).map((_, index) => {
+                        const firstDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+                        const day = new Date(firstDayOfMonth);
+                        day.setDate(1 - firstDayOfMonth.getDay() + index);
                         
-                        const eventsAtTime = getEventsForDay(selectedDate).filter(event => {
-                          const eventStart = new Date(event.data_hora_inicio);
-                          const eventEnd = new Date(event.data_hora_fim);
-                          return eventStart <= slotDate && eventEnd > slotDate;
-                        });
-                        
-                        if (eventsAtTime.length === 0) return null;
+                        const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
+                        const isToday = day.toDateString() === new Date().toDateString();
+                        const hasEvents = hasEventsOnDate(day);
                         
                         return (
-                          <div key={timeSlot} className="flex">
-                            <div className="w-16 text-right pr-4 text-gray-500">
-                              {timeSlot}
+                          <div 
+                            key={index}
+                            className={`
+                              min-h-14 p-1 border 
+                              ${isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400'}
+                              ${isToday ? 'border-primary' : 'border-gray-100'}
+                            `}
+                            onClick={() => {
+                              setSelectedDate(new Date(day));
+                              setViewMode('day');
+                            }}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className={`text-sm ${isToday ? 'font-bold text-primary' : ''}`}>
+                                {day.getDate()}
+                              </span>
+                              
+                              {hasEvents && (
+                                <div className="h-2 w-2 rounded-full bg-primary"></div>
+                              )}
                             </div>
                             
-                            <div className="flex-1 space-y-2">
-                              {eventsAtTime.map(event => (
-                                <div
-                                  key={event.id}
-                                  className="p-3 rounded-md bg-primary/10 border-l-4 border-primary cursor-pointer hover:bg-primary/20"
-                                  onClick={() => handleEventClick(event)}
-                                >
-                                  <h3 className="font-medium">{event.titulo}</h3>
-                                  <div className="flex items-center text-sm text-gray-500">
-                                    <Clock className="h-3 w-3 mr-1" />
-                                    <span>
-                                      {new Date(event.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - 
-                                      {new Date(event.data_hora_fim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
+                            {hasEvents && (
+                              <div className="mt-1">
+                                {getEventsForDay(day).slice(0, 2).map((event, i) => (
+                                  <div 
+                                    key={i}
+                                    className="text-xs p-1 mb-1 truncate bg-primary/10 rounded"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEventClick(event);
+                                    }}
+                                  >
+                                    {event.titulo}
                                   </div>
-                                </div>
-                              ))}
-                            </div>
+                                ))}
+                                
+                                {getEventsForDay(day).length > 2 && (
+                                  <div className="text-xs text-gray-500 text-center">
+                                    +{getEventsForDay(day).length - 2} mais
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="week" className="mt-0">
-                  <div className="grid grid-cols-7 gap-2">
-                    {generateWeekDays(selectedDate).map((day, index) => (
-                      <div key={index} className="text-center">
-                        <div className={`
-                          p-2 rounded-md mb-2 
-                          ${new Date().toDateString() === day.toDateString() ? 'bg-primary text-white' : 'bg-gray-100'}
-                        `}>
-                          <p className="font-medium">{day.toLocaleDateString('pt-BR', { weekday: 'short' })}</p>
-                          <p>{day.getDate()}</p>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          {getEventsForDay(day).map(event => (
-                            <div
-                              key={event.id}
-                              className="p-2 rounded-md bg-primary/10 border-l-4 border-primary cursor-pointer hover:bg-primary/20 text-left"
-                              onClick={() => handleEventClick(event)}
-                            >
-                              <h4 className="font-medium text-sm truncate">{event.titulo}</h4>
-                              <div className="flex items-center text-xs text-gray-500">
-                                <Clock className="h-3 w-3 mr-1" />
-                                <span>
-                                  {new Date(event.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                          
-                          {getEventsForDay(day).length === 0 && (
-                            <div className="h-8 flex items-center justify-center">
-                              <span className="text-xs text-gray-400">Sem eventos</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="month" className="mt-0">
-                  <div className="grid grid-cols-7 gap-1">
-                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                      <div key={day} className="text-center font-medium p-2">
-                        {day}
-                      </div>
-                    ))}
-                    
-                    {Array.from({ length: 42 }).map((_, index) => {
-                      const firstDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
-                      const day = new Date(firstDayOfMonth);
-                      day.setDate(1 - firstDayOfMonth.getDay() + index);
-                      
-                      const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
-                      const isToday = day.toDateString() === new Date().toDateString();
-                      const hasEvents = hasEventsOnDate(day);
-                      
-                      return (
-                        <div 
-                          key={index}
-                          className={`
-                            min-h-14 p-1 border 
-                            ${isCurrentMonth ? 'bg-white' : 'bg-gray-50 text-gray-400'}
-                            ${isToday ? 'border-primary' : 'border-gray-100'}
-                          `}
-                          onClick={() => {
-                            setSelectedDate(new Date(day));
-                            setViewMode('day');
-                          }}
-                        >
-                          <div className="flex justify-between items-center">
-                            <span className={`text-sm ${isToday ? 'font-bold text-primary' : ''}`}>
-                              {day.getDate()}
-                            </span>
-                            
-                            {hasEvents && (
-                              <div className="h-2 w-2 rounded-full bg-primary"></div>
-                            )}
-                          </div>
-                          
-                          {hasEvents && (
-                            <div className="mt-1">
-                              {getEventsForDay(day).slice(0, 2).map((event, i) => (
-                                <div 
-                                  key={i}
-                                  className="text-xs p-1 mb-1 truncate bg-primary/10 rounded"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEventClick(event);
-                                  }}
-                                >
-                                  {event.titulo}
-                                </div>
-                              ))}
-                              
-                              {getEventsForDay(day).length > 2 && (
-                                <div className="text-xs text-gray-500 text-center">
-                                  +{getEventsForDay(day).length - 2} mais
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </TabsContent>
+                  </TabsContent>
+                </Tabs>
               </div>
             </div>
           </div>
