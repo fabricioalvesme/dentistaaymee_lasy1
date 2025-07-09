@@ -163,6 +163,23 @@ const PublicForm = () => {
     }
   };
 
+  // Método para redirecionar para WhatsApp com mensagem
+  const redirectToWhatsApp = () => {
+    try {
+      const phone = "556492527548";
+      const message = encodeURIComponent("Pronto, acabei de assinar o documento.");
+      
+      // URL para WhatsApp Web/App
+      const whatsappUrl = `https://api.whatsapp.com/send/?phone=${phone}&text=${message}`;
+      
+      // Abrir em nova aba
+      window.open(whatsappUrl, "_blank");
+    } catch (error) {
+      console.error("Erro ao redirecionar para WhatsApp:", error);
+      toast.error("Não foi possível abrir o WhatsApp automaticamente.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -399,9 +416,7 @@ const PublicForm = () => {
             <p className="text-sm mb-2">Clique no botão abaixo para avisar a Dra. Aymée via WhatsApp:</p>
             <Button 
               className="w-full"
-              onClick={() => {
-                window.location.href = "https://api.whatsapp.com/send/?phone=556492527548&text=Pronto,%20acabei%20de%20assinar%20o%20documento.";
-              }}
+              onClick={redirectToWhatsApp}
             >
               <Check className="mr-2 h-4 w-4" />
               Avisar via WhatsApp

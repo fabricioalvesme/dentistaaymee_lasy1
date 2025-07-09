@@ -370,6 +370,62 @@ const NewPatientForm = () => {
     }
   };
 
+  // Função para copiar texto para área de transferência com fallback
+  const copyToClipboard = (text: string) => {
+    try {
+      // Método 1: Usar a Clipboard API moderna
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(() => {
+            toast.success('Link copiado para a área de transferência');
+          })
+          .catch(err => {
+            console.error("Erro ao usar navigator.clipboard:", err);
+            // Se falhar, vai para o método de fallback
+            copyToClipboardFallback(text);
+          });
+      } else {
+        // Se a API não estiver disponível, usa o método de fallback
+        copyToClipboardFallback(text);
+      }
+    } catch (err) {
+      console.error("Erro ao copiar texto:", err);
+      // Tenta o método de fallback em caso de erro
+      copyToClipboardFallback(text);
+    }
+  };
+
+  // Método alternativo para copiar texto usando seleção
+  const copyToClipboardFallback = (text: string) => {
+    try {
+      // Cria um elemento temporário
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      
+      // Configura o elemento para não ser visível
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      
+      // Seleciona e copia o texto
+      textArea.focus();
+      textArea.select();
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        toast.success('Link copiado para a área de transferência');
+      } else {
+        toast.error('Não foi possível copiar o link automaticamente. Por favor, copie-o manualmente.');
+      }
+    } catch (err) {
+      console.error("Erro no método fallback:", err);
+      toast.error('Não foi possível copiar o link. Por favor, copie-o manualmente.');
+    }
+  };
+
   const termoAtendimentoText = `
     <p class="mb-4">Declaro que a Dra. Aymée Ávila Frauzino me explicou os propósitos, riscos, custos e alternativas do tratamento odontológico proposto. Estou ciente de que o sucesso depende da resposta biológica do organismo e das técnicas empregadas. Comprometo-me a seguir as orientações e arcar com os custos estipulados.</p>
     
@@ -1052,8 +1108,8 @@ const NewPatientForm = () => {
             />
             <Button 
               onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/public/form?id=${newPatientId}`);
-                toast.success('Link copiado para a área de transferência');
+                const linkText = `${window.location.origin}/public/form?id=${newPatientId}`;
+                copyToClipboard(linkText);
               }} 
               variant="secondary"
             >
