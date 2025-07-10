@@ -38,6 +38,7 @@ export function Header() {
 
   // Função para navegar para o dashboard e fechar o menu
   const navigateToDashboard = () => {
+    console.log("Navegando para o dashboard");
     setIsMenuOpen(false);
     navigate('/admin/dashboard');
   };
@@ -47,7 +48,7 @@ export function Header() {
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled || isMenuOpen
           ? 'bg-white shadow-md py-2'
-          : 'bg-transparent py-4'
+          : 'bg-white shadow-sm py-4'
       }`}
     >
       <div className="container mx-auto px-4">
@@ -83,7 +84,7 @@ export function Header() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => navigate('/admin/dashboard')}
+                  onClick={navigateToDashboard}
                 >
                   <User className="h-4 w-4 mr-1" />
                   Área Admin

@@ -11,10 +11,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DialogFooter } from "@/components/ui/dialog";
-import { Appointment } from "@/lib/supabaseClient";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Loader2 } from "lucide-react";
 
 const appointmentSchema = z.object({
   titulo: z.string().min(3, 'Título deve ter pelo menos 3 caracteres'),
@@ -34,14 +35,28 @@ interface EventFormProps {
 }
 
 export function EventForm({ defaultValues, onSubmit, isEditing }: EventFormProps) {
+  const [submitting, setSubmitting] = useState(false);
+  
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
     defaultValues,
   });
 
+  const handleSubmit = async (data: AppointmentFormValues) => {
+    try {
+      setSubmitting(true);
+      console.log("Enviando formulário:", data);
+      await onSubmit(data);
+    } catch (error) {
+      console.error("Erro ao salvar evento:", error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="titulo"
@@ -85,7 +100,7 @@ export function EventForm({ defaultValues, onSubmit, isEditing }: EventFormProps
                 <Calendar
                   mode="single"
                   selected={field.value}
-                  onSelect={field.onChange}
+                  onSelect={(date) => date && field.onChange(date)}
                   disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                   initialFocus
                   className="mx-auto border rounded-md"
@@ -133,8 +148,19 @@ export function EventForm({ defaultValues, onSubmit, isEditing }: EventFormProps
         </div>
         
         <DialogFooter className="mt-8 sm:mt-6 pb-2">
-          <Button type="submit" className="w-full sm:w-auto">
-            {isEditing ? 'Salvar Alterações' : 'Adicionar Evento'}
+          <Button 
+            type="submit" 
+            className="w-full sm:w-auto"
+            disabled={submitting}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isEditing ? 'Salvando...' : 'Adicionando...'}
+              </>
+            ) : (
+              isEditing ? 'Salvar Alterações' : 'Adicionar Evento'
+            )}
           </Button>
         </DialogFooter>
       </form>

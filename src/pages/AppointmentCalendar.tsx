@@ -28,6 +28,7 @@ import { WeekView } from '@/components/appointments/WeekView';
 import { MonthView } from '@/components/appointments/MonthView';
 import { EventForm, AppointmentFormValues } from '@/components/appointments/EventForm';
 import { EventDetails } from '@/components/appointments/EventDetails';
+import { toast } from 'sonner';
 
 const AppointmentCalendar = () => {
   const {
@@ -99,9 +100,32 @@ const AppointmentCalendar = () => {
 
   // Enviar formulário
   const onSubmit = async (data: AppointmentFormValues) => {
-    const success = await saveAppointment(data, selectedEvent);
-    if (success) {
-      setShowDialog(false);
+    try {
+      console.log("Processando envio do formulário:", data);
+      
+      // Validar se a hora de término é posterior à hora de início
+      const startDate = new Date(data.data);
+      const endDate = new Date(data.data);
+      
+      const [startHours, startMinutes] = data.hora_inicio.split(':').map(Number);
+      const [endHours, endMinutes] = data.hora_fim.split(':').map(Number);
+      
+      startDate.setHours(startHours, startMinutes, 0, 0);
+      endDate.setHours(endHours, endMinutes, 0, 0);
+      
+      if (startDate >= endDate) {
+        toast.error('A hora de início deve ser anterior à hora de fim');
+        return;
+      }
+      
+      const success = await saveAppointment(data, selectedEvent);
+      if (success) {
+        setShowDialog(false);
+        toast.success(selectedEvent ? 'Evento atualizado com sucesso' : 'Evento criado com sucesso');
+      }
+    } catch (error) {
+      console.error("Erro ao salvar evento:", error);
+      toast.error('Erro ao salvar o evento. Tente novamente.');
     }
   };
 

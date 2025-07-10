@@ -19,8 +19,15 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     // Verificação de autenticação
     const checkAuth = async () => {
       try {
-        // Esperar o carregamento do estado de autenticação
+        // Se ainda está carregando, aguarde
         if (loading) return;
+        
+        console.log("ProtectedRoute - Estado de autenticação:", { 
+          user: !!user, 
+          loading, 
+          isAdmin, 
+          path: location.pathname 
+        });
         
         if (!user) {
           console.log("Usuário não autenticado, redirecionando para login");

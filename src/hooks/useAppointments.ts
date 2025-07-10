@@ -25,6 +25,7 @@ export function useAppointments() {
       
       if (error) throw error;
       
+      console.log("Compromissos carregados:", data?.length || 0);
       setAppointments(data || []);
       return data || [];
     } catch (error) {
@@ -70,6 +71,7 @@ export function useAppointments() {
   ) => {
     try {
       setLoading(true);
+      console.log("Salvando compromisso:", { data, isEditing: !!selectedEvent });
       
       // Converter para ISO string
       const startDate = new Date(data.data);
@@ -96,22 +98,34 @@ export function useAppointments() {
       
       if (selectedEvent) {
         // Atualizar evento existente
-        const { error } = await supabase
+        console.log("Atualizando evento existente:", selectedEvent.id);
+        const { data: updatedData, error } = await supabase
           .from('appointments')
           .update(appointmentData)
-          .eq('id', selectedEvent.id);
+          .eq('id', selectedEvent.id)
+          .select();
         
-        if (error) throw error;
+        if (error) {
+          console.error("Erro ao atualizar evento:", error);
+          throw error;
+        }
         
+        console.log("Evento atualizado com sucesso:", updatedData);
         toast.success('Evento atualizado com sucesso');
       } else {
         // Criar novo evento
-        const { error } = await supabase
+        console.log("Criando novo evento");
+        const { data: insertedData, error } = await supabase
           .from('appointments')
-          .insert([appointmentData]);
+          .insert([appointmentData])
+          .select();
         
-        if (error) throw error;
+        if (error) {
+          console.error("Erro ao criar evento:", error);
+          throw error;
+        }
         
+        console.log("Evento criado com sucesso:", insertedData);
         toast.success('Evento criado com sucesso');
       }
       
@@ -119,7 +133,7 @@ export function useAppointments() {
       return true;
     } catch (error) {
       console.error('Erro ao salvar evento:', error);
-      toast.error('Erro ao salvar evento');
+      toast.error('Erro ao salvar evento. Tente novamente.');
       return false;
     } finally {
       setLoading(false);
