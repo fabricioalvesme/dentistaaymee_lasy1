@@ -13,36 +13,55 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   const navigate = useNavigate();
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Só verifica após a autenticação ter carregado
-    if (!loading) {
-      if (!user) {
-        // Redirecionar para login, guardando a rota tentada
-        navigate('/admin/login', { 
-          replace: true,
-          state: { from: location.pathname }
-        });
-      } else if (requireAdmin && !isAdmin) {
-        // Se precisa ser admin mas não é
-        navigate('/', { replace: true });
+    // Verificação de autenticação
+    const checkAuth = async () => {
+      try {
+        // Esperar o carregamento do estado de autenticação
+        if (loading) return;
+        
+        if (!user) {
+          console.log("Usuário não autenticado, redirecionando para login");
+          // Redirecionar para login, guardando a rota tentada
+          navigate('/admin/login', { 
+            replace: true,
+            state: { from: location.pathname }
+          });
+          return;
+        }
+        
+        if (requireAdmin && !isAdmin) {
+          console.log("Usuário não é admin, redirecionando para home");
+          // Se precisa ser admin mas não é
+          navigate('/', { replace: true });
+          return;
+        }
+        
+        // Se chegou aqui, o usuário está autenticado e tem permissão
+        setIsAuthenticated(true);
+      } finally {
+        // Finaliza a verificação
+        setIsChecking(false);
       }
-      
-      // Finaliza a verificação
-      setIsChecking(false);
-    }
+    };
+    
+    checkAuth();
   }, [user, loading, navigate, requireAdmin, isAdmin, location.pathname]);
 
   // Mostra spinner enquanto verifica autenticação
   if (loading || isChecking) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2 text-lg font-medium">Carregando...</span>
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+          <span className="text-lg font-medium">Carregando...</span>
+        </div>
       </div>
     );
   }
 
-  // Se chegou aqui, significa que o usuário está autenticado e tem permissão
-  return <>{children}</>;
+  // Renderiza os filhos apenas se estiver autenticado
+  return isAuthenticated ? <>{children}</> : null;
 }

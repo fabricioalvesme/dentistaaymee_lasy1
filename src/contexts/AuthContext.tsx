@@ -31,7 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (error) {
           console.error('Erro ao carregar sessão:', error);
-          toast.error('Erro ao carregar sessão');
           return;
         }
         
@@ -136,19 +135,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       setLoading(true);
+      console.log("Tentando fazer logout");
+      
+      // Limpar estados antes de fazer logout no Supabase
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
+      
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        console.error('Erro ao fazer logout:', error);
-        toast.error('Falha ao fazer logout');
-        return;
+        console.error('Erro ao fazer logout no Supabase:', error);
+        throw error;
       }
       
-      toast.success('Logout realizado com sucesso!');
-      navigate('/');
+      console.log("Logout bem-sucedido");
+      return;
     } catch (error: any) {
       console.error('Erro ao fazer logout:', error);
       toast.error('Falha ao fazer logout');
+      throw error;
     } finally {
       setLoading(false);
     }

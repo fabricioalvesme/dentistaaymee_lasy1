@@ -4,6 +4,7 @@ import { Menu, X, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -26,17 +27,26 @@ export function Header() {
   const handleSignOut = async () => {
     try {
       await signOut();
+      toast.success('Logout realizado com sucesso!');
+      setIsMenuOpen(false);
       navigate('/');
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
+      toast.error('Erro ao fazer logout. Tente novamente.');
     }
+  };
+
+  // Função para navegar para o dashboard e fechar o menu
+  const navigateToDashboard = () => {
+    setIsMenuOpen(false);
+    navigate('/admin/dashboard');
   };
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'bg-white/95 backdrop-blur-sm shadow-md py-2'
+        scrolled || isMenuOpen
+          ? 'bg-white shadow-md py-2'
           : 'bg-transparent py-4'
       }`}
     >
@@ -115,40 +125,39 @@ export function Header() {
 
         {/* Menu mobile */}
         {isMenuOpen && (
-          <div className="md:hidden py-4">
-            <nav className="flex flex-col space-y-4">
+          <div className="md:hidden py-4 mt-4 bg-white rounded-lg shadow-md">
+            <nav className="flex flex-col space-y-4 px-4">
               <a 
                 href="/#sobre" 
-                className="text-gray-700 hover:text-primary font-medium"
+                className="text-gray-800 hover:text-primary font-medium py-2"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Sobre
               </a>
               <a 
                 href="/#servicos" 
-                className="text-gray-700 hover:text-primary font-medium"
+                className="text-gray-800 hover:text-primary font-medium py-2"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Serviços
               </a>
               <a 
                 href="/#contato" 
-                className="text-gray-700 hover:text-primary font-medium"
+                className="text-gray-800 hover:text-primary font-medium py-2"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Contato
               </a>
               
+              <div className="border-t border-gray-200 pt-2 mt-2"></div>
+              
               {user ? (
-                <div className="flex flex-col space-y-2 pt-2 border-t border-gray-200">
+                <div className="flex flex-col space-y-2">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="w-full"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      navigate('/admin/dashboard');
-                    }}
+                    className="w-full justify-start"
+                    onClick={navigateToDashboard}
                   >
                     <User className="h-4 w-4 mr-1" />
                     Área Admin
@@ -156,10 +165,8 @@ export function Header() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      handleSignOut();
-                      setIsMenuOpen(false);
-                    }}
+                    className="w-full justify-start"
+                    onClick={handleSignOut}
                   >
                     Sair
                   </Button>
@@ -168,7 +175,7 @@ export function Header() {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="w-full mt-2 border-t border-gray-200"
+                  className="w-full justify-start"
                   onClick={() => {
                     setIsMenuOpen(false);
                     navigate('/admin/login');
