@@ -39,6 +39,7 @@ const SEOSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settingsId, setSettingsId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('seo');
   
   const form = useForm<SEOSettingsValues>({
     resolver: zodResolver(seoSettingsSchema),
@@ -184,8 +185,8 @@ const SEOSettings = () => {
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <Tabs defaultValue="seo" className="w-full">
-                <TabsList className="grid grid-cols-3">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid grid-cols-3 w-full">
                   <TabsTrigger value="seo">SEO</TabsTrigger>
                   <TabsTrigger value="conteudo">Conteúdo</TabsTrigger>
                   <TabsTrigger value="design">Design</TabsTrigger>
@@ -416,7 +417,7 @@ const SEOSettings = () => {
                 </TabsContent>
               </Tabs>
               
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving} className="w-full md:w-auto">
                 {saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

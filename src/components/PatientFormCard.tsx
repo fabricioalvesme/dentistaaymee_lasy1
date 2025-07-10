@@ -39,47 +39,49 @@ export function PatientFormCard({
       </CardContent>
       
       <CardFooter className="flex flex-wrap gap-2 pt-2">
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className="flex-1 min-w-[80px]"
-          onClick={() => onViewDetails(patient.id)}
-        >
-          <Eye className="h-4 w-4 mr-1" />
-          <span className="whitespace-nowrap">Detalhes</span>
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className="flex-1 min-w-[80px]"
-          asChild
-        >
-          <Link to={`/admin/forms/edit/${patient.id}`}>
-            <Pencil className="h-4 w-4 mr-1" />
-            <span className="whitespace-nowrap">Editar</span>
-          </Link>
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className="flex-1 min-w-[80px]"
-          onClick={() => onExport(patient.id)}
-        >
-          <FileText className="h-4 w-4 mr-1" />
-          <span className="whitespace-nowrap">Exportar</span>
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className="flex-1 min-w-[80px]"
-          onClick={() => onShare(patient.id)}
-        >
-          <Share2 className="h-4 w-4 mr-1" />
-          <span className="whitespace-nowrap">Compartilhar</span>
-        </Button>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => onViewDetails(patient.id)}
+            className="text-xs md:text-sm flex items-center justify-center"
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            <span>Detalhes</span>
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="sm"
+            asChild
+            className="text-xs md:text-sm flex items-center justify-center"
+          >
+            <Link to={`/admin/forms/edit/${patient.id}`}>
+              <Pencil className="h-4 w-4 mr-1" />
+              <span>Editar</span>
+            </Link>
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => onExport(patient.id)}
+            className="text-xs md:text-sm flex items-center justify-center"
+          >
+            <FileText className="h-4 w-4 mr-1" />
+            <span>Exportar</span>
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => onShare(patient.id)}
+            className="text-xs md:text-sm flex items-center justify-center"
+          >
+            <Share2 className="h-4 w-4 mr-1" />
+            <span>Compartilhar</span>
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

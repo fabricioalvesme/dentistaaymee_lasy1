@@ -132,8 +132,8 @@ export function EventForm({ defaultValues, onSubmit, isEditing }: EventFormProps
           />
         </div>
         
-        <DialogFooter className="mt-6">
-          <Button type="submit">
+        <DialogFooter className="mt-8 sm:mt-6 pb-2">
+          <Button type="submit" className="w-full sm:w-auto">
             {isEditing ? 'Salvar Alterações' : 'Adicionar Evento'}
           </Button>
         </DialogFooter>
