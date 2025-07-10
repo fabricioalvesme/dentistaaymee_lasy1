@@ -190,15 +190,18 @@ const Index = () => {
             </div>
             
             <div className="md:w-2/3">
-              <div className="prose max-w-none" dangerouslySetInnerHTML={{ 
-                __html: settings?.about_text || `
-                  <p>Dra. Aymée Frauzino é especialista em Odontopediatria, dedicada a proporcionar cuidados odontológicos de excelência para crianças de todas as idades.</p>
-                  
-                  <p>Formada pela Universidade Federal de Goiás, com especialização em Odontopediatria, possui ampla experiência no atendimento infantil, combinando técnica, conhecimento científico e uma abordagem lúdica e acolhedora.</p>
-                  
-                  <p>Seu consultório foi planejado para oferecer um ambiente tranquilo e divertido, onde as crianças possam se sentir seguras durante o tratamento. Dra. Aymée acredita que uma experiência positiva na infância é fundamental para formar adultos sem medo de ir ao dentista.</p>
-                `
-              }} />
+              <div 
+                className="prose max-w-none" 
+                dangerouslySetInnerHTML={{ 
+                  __html: settings?.about_text || `
+                    <p>Dra. Aymée Frauzino é especialista em Odontopediatria, dedicada a proporcionar cuidados odontológicos de excelência para crianças de todas as idades.</p>
+                    
+                    <p>Formada pela Universidade Federal de Goiás, com especialização em Odontopediatria, possui ampla experiência no atendimento infantil, combinando técnica, conhecimento científico e uma abordagem lúdica e acolhedora.</p>
+                    
+                    <p>Seu consultório foi planejado para oferecer um ambiente tranquilo e divertido, onde as crianças possam se sentir seguras durante o tratamento. Dra. Aymée acredita que uma experiência positiva na infância é fundamental para formar adultos sem medo de ir ao dentista.</p>
+                  `
+                }} 
+              />
               
               <div className="mt-6">
                 <Button asChild>
