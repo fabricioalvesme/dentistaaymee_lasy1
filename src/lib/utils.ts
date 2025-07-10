@@ -93,3 +93,42 @@ export function getMonthName(month: number): string {
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 11);
 }
+
+/**
+ * Função para copiar texto para a área de transferência com fallback
+ * Resolve problemas de permissão da Clipboard API
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    // Método moderno (preferencial)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+
+    // Método fallback para navegadores que não suportam Clipboard API
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    
+    // Torna o textarea invisível e o anexa ao DOM
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    
+    // Seleciona o texto e tenta copiá-lo
+    textArea.focus();
+    textArea.select();
+    
+    const successful = document.execCommand('copy');
+    
+    // Remove o elemento temporário
+    document.body.removeChild(textArea);
+    
+    return successful;
+  } catch (error) {
+    console.error('Erro ao copiar para a área de transferência:', error);
+    return false;
+  }
+}

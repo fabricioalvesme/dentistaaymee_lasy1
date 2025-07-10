@@ -14,7 +14,8 @@ import {
   FileText, 
   User, 
   ChevronDown,
-  Loader2
+  Loader2,
+  Check
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -41,7 +42,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatDate, getAge } from '@/lib/utils';
+import { formatDate, getAge, copyToClipboard } from '@/lib/utils';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -63,6 +64,7 @@ const Dashboard = () => {
     assinado: 0
   });
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
   
   const navigate = useNavigate();
 
@@ -199,9 +201,22 @@ const Dashboard = () => {
   };
 
   // Copiar link para a área de transferência
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(shareLink);
-    toast.success('Link copiado para a área de transferência');
+  const copyToClipboardHandler = async () => {
+    setIsCopying(true);
+    try {
+      const success = await copyToClipboard(shareLink);
+      
+      if (success) {
+        toast.success('Link copiado para a área de transferência');
+      } else {
+        toast.error('Não foi possível copiar o link. Tente copiar manualmente.');
+      }
+    } catch (error) {
+      console.error('Erro ao copiar link:', error);
+      toast.error('Erro ao copiar o link');
+    } finally {
+      setIsCopying(false);
+    }
   };
 
   return (
@@ -366,7 +381,18 @@ const Dashboard = () => {
               readOnly 
               onClick={(e) => (e.target as HTMLInputElement).select()}
             />
-            <Button onClick={copyToClipboard} variant="secondary">Copiar</Button>
+            <Button 
+              onClick={copyToClipboardHandler} 
+              variant="secondary"
+              disabled={isCopying}
+            >
+              {isCopying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4 mr-1" />
+              )}
+              {isCopying ? "Copiando..." : "Copiar"}
+            </Button>
           </div>
           
           <p className="text-sm text-gray-500 mt-2">
