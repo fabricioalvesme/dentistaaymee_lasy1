@@ -16,7 +16,8 @@ import {
   ChevronDown,
   Loader2,
   Check,
-  X
+  X,
+  Download
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -44,6 +45,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDate, getAge, copyToClipboard } from '@/lib/utils';
+import { PatientFormPDFViewer } from '@/components/exports/PatientFormPDF';
+import { useTheme } from '@/contexts/ThemeContext';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { PatientFormPDF } from '@/components/exports/PatientFormPDF';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -52,6 +57,7 @@ const Dashboard = () => {
   const [periodFilter, setPeriodFilter] = useState('all');
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientDetails, setPatientDetails] = useState<{
     healthHistory?: HealthHistory | null;
@@ -64,8 +70,10 @@ const Dashboard = () => {
     assinado: 0
   });
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [loadingExport, setLoadingExport] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { settings } = useTheme();
   
   const navigate = useNavigate();
 
@@ -203,10 +211,23 @@ const Dashboard = () => {
     }
   };
 
-  // Exportar formulário
-  const handleExport = (id: string) => {
-    // Implementação futura para exportar como PDF/CSV
-    toast.info('Funcionalidade de exportação em desenvolvimento');
+  // Exportar formulário para PDF
+  const handleExport = async (id: string) => {
+    try {
+      setLoadingExport(true);
+      const patient = patients.find(p => p.id === id);
+      
+      if (patient) {
+        setSelectedPatient(patient);
+        await loadPatientDetails(id);
+        setShowExportDialog(true);
+      }
+    } catch (error) {
+      console.error('Erro ao preparar exportação:', error);
+      toast.error('Erro ao preparar exportação do formulário');
+    } finally {
+      setLoadingExport(false);
+    }
   };
 
   // Copiar link para a área de transferência
@@ -750,7 +771,10 @@ const Dashboard = () => {
                     }}>
                       Compartilhar Link
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExport(selectedPatient.id)}>
+                    <DropdownMenuItem onClick={() => {
+                      setShowDetailsDialog(false);
+                      handleExport(selectedPatient.id);
+                    }}>
                       Exportar PDF
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -761,6 +785,56 @@ const Dashboard = () => {
             <div className="py-6 text-center">
               <p className="text-gray-500">Paciente não encontrado.</p>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Diálogo de Exportação PDF */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Exportar Formulário</DialogTitle>
+            <DialogDescription>
+              Visualize e exporte o formulário do paciente como PDF
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingExport || !selectedPatient ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              <div className="my-4">
+                <PatientFormPDFViewer 
+                  patient={selectedPatient}
+                  healthHistory={patientDetails.healthHistory}
+                  treatment={patientDetails.treatment}
+                  logoUrl={settings?.logo_url}
+                />
+              </div>
+              
+              <DialogFooter>
+                <PDFDownloadLink
+                  document={
+                    <PatientFormPDF
+                      patient={selectedPatient}
+                      healthHistory={patientDetails.healthHistory}
+                      treatment={patientDetails.treatment}
+                      logoUrl={settings?.logo_url}
+                    />
+                  }
+                  fileName={`formulario_${selectedPatient.nome.replace(/\s+/g, '_').toLowerCase()}.pdf`}
+                >
+                  {({ loading: pdfLoading }) => (
+                    <Button disabled={pdfLoading}>
+                      <Download className="h-4 w-4 mr-2" />
+                      {pdfLoading ? 'Preparando PDF...' : 'Baixar PDF'}
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+              </DialogFooter>
+            </>
           )}
         </DialogContent>
       </Dialog>
