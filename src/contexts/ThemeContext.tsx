@@ -15,7 +15,6 @@ const defaultSettings: Partial<Settings> = {
   accent_color: '#F3F4F6',
   meta_title: 'Dra. Aymée Frauzino – Odontopediatra',
   meta_description: 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.',
-  convenios_text: 'Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.',
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -28,36 +27,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     async function loadSettings() {
       try {
         setLoading(true);
-        console.log("ThemeContext: Carregando configurações...");
-        
         const { data, error } = await supabase
           .from('settings')
           .select('*')
           .limit(1)
-          .maybeSingle();
+          .single();
 
-        if (error) {
-          console.error('ThemeContext: Erro ao carregar configurações:', error);
+        if (error && error.code !== 'PGRST116') {
+          console.error('Erro ao carregar configurações:', error);
           setSettings(defaultSettings);
-          return;
-        }
-        
-        if (data) {
-          console.log("ThemeContext: Configurações carregadas com sucesso:", data);
-          
-          // Combine com valores padrão para garantir que todos os campos estejam presentes
-          const mergedSettings = {
-            ...defaultSettings,
-            ...data
-          };
-          
-          setSettings(mergedSettings);
         } else {
-          console.log("ThemeContext: Nenhuma configuração encontrada, usando valores padrão");
-          setSettings(defaultSettings);
+          setSettings(data || defaultSettings);
         }
       } catch (error) {
-        console.error('ThemeContext: Erro ao carregar configurações:', error);
+        console.error('Erro ao carregar configurações:', error);
         setSettings(defaultSettings);
       } finally {
         setLoading(false);
@@ -74,15 +57,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         schema: 'public', 
         table: 'settings' 
       }, payload => {
-        console.log('ThemeContext: Mudança detectada nas configurações:', payload);
+        console.log('Mudança detectada nas configurações:', payload);
         if (payload.new) {
-          // Combine com valores padrão para garantir que todos os campos estejam presentes
-          const mergedSettings = {
-            ...defaultSettings,
-            ...(payload.new as Partial<Settings>)
-          };
-          
-          setSettings(mergedSettings);
+          setSettings(payload.new as Partial<Settings>);
         }
       })
       .subscribe();
@@ -98,19 +75,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       document.documentElement.style.setProperty('--color-primary', settings.primary_color || defaultSettings.primary_color!);
       document.documentElement.style.setProperty('--color-secondary', settings.secondary_color || defaultSettings.secondary_color!);
       document.documentElement.style.setProperty('--color-accent', settings.accent_color || defaultSettings.accent_color!);
-      
-      console.log("ThemeContext: Aplicando cores:", {
-        primary: settings.primary_color,
-        secondary: settings.secondary_color,
-        accent: settings.accent_color
-      });
     }
   }, [settings]);
 
   const updateSettings = async (newSettings: Partial<Settings>) => {
     try {
       setLoading(true);
-      console.log("ThemeContext: Atualizando configurações:", newSettings);
       
       // Verifica se já existe uma entrada
       const { data: existingSettings } = await supabase
@@ -134,7 +104,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
 
       if (result.error) {
-        console.error("ThemeContext: Erro na operação do Supabase:", result.error);
         throw result.error;
       }
 
@@ -146,20 +115,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         .single();
         
       if (error) {
-        console.error("ThemeContext: Erro ao recarregar configurações:", error);
         throw error;
       }
 
-      // Combine com valores padrão para garantir que todos os campos estejam presentes
-      const mergedSettings = {
-        ...defaultSettings,
-        ...data
-      };
-      
-      setSettings(mergedSettings);
+      setSettings(data || defaultSettings);
       toast.success('Configurações atualizadas com sucesso!');
     } catch (error) {
-      console.error('ThemeContext: Erro ao atualizar configurações:', error);
+      console.error('Erro ao atualizar configurações:', error);
       toast.error('Erro ao atualizar configurações. Tente novamente.');
       throw error;
     } finally {

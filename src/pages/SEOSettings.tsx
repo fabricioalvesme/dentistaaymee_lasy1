@@ -24,9 +24,9 @@ import { Loader2 } from 'lucide-react';
 const seoSettingsSchema = z.object({
   meta_title: z.string().max(60, 'O título deve ter no máximo 60 caracteres'),
   meta_description: z.string().max(160, 'A descrição deve ter no máximo 160 caracteres'),
-  about_text: z.string().optional().default(''),
-  services_text: z.string().optional().default(''),
-  convenios_text: z.string().optional().default('Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.'),
+  about_text: z.string(),
+  services_text: z.string(),
+  convenios_text: z.string(),
   logo_url: z.string().url('URL inválida').or(z.string().length(0)),
   primary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Formato de cor inválido'),
   secondary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Formato de cor inválido'),
@@ -35,29 +35,25 @@ const seoSettingsSchema = z.object({
 
 type SEOSettingsValues = z.infer<typeof seoSettingsSchema>;
 
-const defaultSettings: SEOSettingsValues = {
-  meta_title: 'Dra. Aymée Frauzino – Odontopediatra',
-  meta_description: 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.',
-  about_text: '',
-  services_text: '',
-  convenios_text: 'Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.',
-  logo_url: '',
-  primary_color: '#3B82F6',
-  secondary_color: '#10B981',
-  accent_color: '#F3F4F6',
-};
-
 const SEOSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('seo');
-  const [loadError, setLoadError] = useState<string | null>(null);
   
   const form = useForm<SEOSettingsValues>({
     resolver: zodResolver(seoSettingsSchema),
-    defaultValues: defaultSettings,
-    mode: 'onChange'
+    defaultValues: {
+      meta_title: 'Dra. Aymée Frauzino – Odontopediatra',
+      meta_description: 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.',
+      about_text: '',
+      services_text: '',
+      convenios_text: 'Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.',
+      logo_url: '',
+      primary_color: '#3B82F6',
+      secondary_color: '#10B981',
+      accent_color: '#F3F4F6',
+    },
   });
 
   // Carregar valores iniciais
@@ -65,47 +61,39 @@ const SEOSettings = () => {
     async function loadSettings() {
       try {
         setLoading(true);
-        setLoadError(null);
-        
-        console.log("Tentando carregar configurações de SEO...");
         
         const { data, error } = await supabase
           .from('settings')
           .select('*')
           .limit(1)
-          .maybeSingle();
+          .single();
         
-        if (error) {
+        if (error && error.code !== 'PGRST116') {
           console.error('Erro ao carregar configurações:', error);
-          setLoadError('Erro ao carregar configurações. Por favor, tente novamente.');
+          toast.error('Erro ao carregar configurações');
           return;
         }
         
         if (data) {
-          console.log('Configurações carregadas com sucesso:', data);
           setSettingsId(data.id);
           
-          // Garantir que valores undefined sejam substituídos por defaults
-          const formattedData = {
-            meta_title: data.meta_title || defaultSettings.meta_title,
-            meta_description: data.meta_description || defaultSettings.meta_description,
+          form.reset({
+            meta_title: data.meta_title || 'Dra. Aymée Frauzino – Odontopediatra',
+            meta_description: data.meta_description || 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.',
             about_text: data.about_text || '',
             services_text: data.services_text || '',
-            convenios_text: data.convenios_text || defaultSettings.convenios_text,
+            convenios_text: data.convenios_text || 'Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.',
             logo_url: data.logo_url || '',
-            primary_color: data.primary_color || defaultSettings.primary_color,
-            secondary_color: data.secondary_color || defaultSettings.secondary_color,
-            accent_color: data.accent_color || defaultSettings.accent_color,
-          };
+            primary_color: data.primary_color || '#3B82F6',
+            secondary_color: data.secondary_color || '#10B981',
+            accent_color: data.accent_color || '#F3F4F6',
+          });
           
-          form.reset(formattedData);
-        } else {
-          console.log('Nenhuma configuração encontrada, usando valores padrão');
-          form.reset(defaultSettings);
+          console.log('Configurações carregadas com sucesso:', data);
         }
       } catch (error) {
         console.error('Erro ao carregar configurações:', error);
-        setLoadError('Erro ao carregar configurações. Por favor, tente novamente.');
+        toast.error('Erro ao carregar configurações');
       } finally {
         setLoading(false);
       }
@@ -117,50 +105,33 @@ const SEOSettings = () => {
   const onSubmit = async (data: SEOSettingsValues) => {
     try {
       setSaving(true);
-      console.log("Salvando configurações:", data);
       
       // Aplicar variáveis CSS com as cores
       document.documentElement.style.setProperty('--color-primary', data.primary_color);
       document.documentElement.style.setProperty('--color-secondary', data.secondary_color);
       document.documentElement.style.setProperty('--color-accent', data.accent_color);
       
-      const settingsData = {
-        meta_title: data.meta_title,
-        meta_description: data.meta_description,
-        about_text: data.about_text || '',
-        services_text: data.services_text || '',
-        convenios_text: data.convenios_text,
-        logo_url: data.logo_url || '',
-        primary_color: data.primary_color,
-        secondary_color: data.secondary_color,
-        accent_color: data.accent_color,
-      };
-      
       let result;
       
       if (settingsId) {
         // Atualizar configurações existentes
-        console.log("Atualizando configurações existentes com ID:", settingsId);
         result = await supabase
           .from('settings')
-          .update(settingsData)
+          .update(data)
           .eq('id', settingsId);
       } else {
         // Criar novas configurações
-        console.log("Criando novas configurações");
         result = await supabase
           .from('settings')
-          .insert([settingsData])
+          .insert([data])
           .select();
           
         if (result.data && result.data.length > 0) {
           setSettingsId(result.data[0].id);
-          console.log("Novas configurações criadas com ID:", result.data[0].id);
         }
       }
       
       if (result.error) {
-        console.error("Erro ao salvar configurações:", result.error);
         throw result.error;
       }
       
@@ -173,23 +144,17 @@ const SEOSettings = () => {
         .eq('id', settingsId || result.data?.[0]?.id)
         .single();
       
-      if (reloadError) {
-        console.error("Erro ao recarregar configurações:", reloadError);
-      }
-      
-      if (reloadedData) {
-        console.log("Configurações recarregadas com sucesso:", reloadedData);
-        
+      if (!reloadError && reloadedData) {
         form.reset({
-          meta_title: reloadedData.meta_title || defaultSettings.meta_title,
-          meta_description: reloadedData.meta_description || defaultSettings.meta_description,
+          meta_title: reloadedData.meta_title,
+          meta_description: reloadedData.meta_description,
           about_text: reloadedData.about_text || '',
           services_text: reloadedData.services_text || '',
-          convenios_text: reloadedData.convenios_text || defaultSettings.convenios_text,
+          convenios_text: reloadedData.convenios_text,
           logo_url: reloadedData.logo_url || '',
-          primary_color: reloadedData.primary_color || defaultSettings.primary_color,
-          secondary_color: reloadedData.secondary_color || defaultSettings.secondary_color,
-          accent_color: reloadedData.accent_color || defaultSettings.accent_color,
+          primary_color: reloadedData.primary_color,
+          secondary_color: reloadedData.secondary_color,
+          accent_color: reloadedData.accent_color,
         });
       }
       
@@ -199,10 +164,6 @@ const SEOSettings = () => {
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleRetry = () => {
-    window.location.reload();
   };
 
   return (
@@ -219,15 +180,7 @@ const SEOSettings = () => {
         
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-gray-600">Carregando configurações...</p>
-            </div>
-          </div>
-        ) : loadError ? (
-          <div className="text-center py-12 bg-red-50 rounded-md p-6">
-            <p className="text-red-600 mb-4">{loadError}</p>
-            <Button onClick={handleRetry}>Tentar Novamente</Button>
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
           <Form {...form}>
@@ -251,10 +204,10 @@ const SEOSettings = () => {
                           Título exibido na aba do navegador e nos resultados de busca (máx. 60 caracteres)
                         </FormDescription>
                         <FormControl>
-                          <Input {...field} value={field.value || ''} />
+                          <Input {...field} />
                         </FormControl>
                         <div className="text-xs text-gray-500 mt-1">
-                          {field.value?.length || 0}/60 caracteres
+                          {field.value.length}/60 caracteres
                         </div>
                         <FormMessage />
                       </FormItem>
@@ -274,11 +227,10 @@ const SEOSettings = () => {
                           <Textarea 
                             {...field} 
                             className="resize-none h-20"
-                            value={field.value || ''}
                           />
                         </FormControl>
                         <div className="text-xs text-gray-500 mt-1">
-                          {field.value?.length || 0}/160 caracteres
+                          {field.value.length}/160 caracteres
                         </div>
                         <FormMessage />
                       </FormItem>
@@ -302,7 +254,6 @@ const SEOSettings = () => {
                             {...field} 
                             className="resize-none h-40 font-mono"
                             placeholder='<p>Dra. Aymée Frauzino é especialista em Odontopediatria, dedicada a proporcionar cuidados odontológicos de excelência para crianças de todas as idades.</p>'
-                            value={field.value || ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -324,7 +275,6 @@ const SEOSettings = () => {
                             {...field} 
                             className="resize-none h-40 font-mono"
                             placeholder='<p>Oferecemos uma variedade de tratamentos odontológicos para garantir a saúde bucal e o bem-estar dos nossos pacientes.</p>'
-                            value={field.value || ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -346,7 +296,6 @@ const SEOSettings = () => {
                             {...field} 
                             className="resize-none h-20 font-mono"
                             placeholder='<p>Aceitamos os seguintes convênios: Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.</p>'
-                            value={field.value || ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -367,11 +316,7 @@ const SEOSettings = () => {
                           Link direto para a imagem do logotipo (recomendado: 200x60px, fundo transparente)
                         </FormDescription>
                         <FormControl>
-                          <Input 
-                            {...field} 
-                            placeholder="https://exemplo.com/imagens/logo.png" 
-                            value={field.value || ''}
-                          />
+                          <Input {...field} placeholder="https://exemplo.com/imagens/logo.png" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -387,11 +332,11 @@ const SEOSettings = () => {
                           <FormLabel>Cor Primária</FormLabel>
                           <div className="flex space-x-2">
                             <FormControl>
-                              <Input {...field} value={field.value || defaultSettings.primary_color} />
+                              <Input {...field} />
                             </FormControl>
                             <div 
                               className="h-10 w-10 rounded-md border"
-                              style={{ backgroundColor: field.value || defaultSettings.primary_color }}
+                              style={{ backgroundColor: field.value }}
                             />
                           </div>
                           <FormMessage />
@@ -407,11 +352,11 @@ const SEOSettings = () => {
                           <FormLabel>Cor Secundária</FormLabel>
                           <div className="flex space-x-2">
                             <FormControl>
-                              <Input {...field} value={field.value || defaultSettings.secondary_color} />
+                              <Input {...field} />
                             </FormControl>
                             <div 
                               className="h-10 w-10 rounded-md border"
-                              style={{ backgroundColor: field.value || defaultSettings.secondary_color }}
+                              style={{ backgroundColor: field.value }}
                             />
                           </div>
                           <FormMessage />
@@ -427,11 +372,11 @@ const SEOSettings = () => {
                           <FormLabel>Cor de Destaque</FormLabel>
                           <div className="flex space-x-2">
                             <FormControl>
-                              <Input {...field} value={field.value || defaultSettings.accent_color} />
+                              <Input {...field} />
                             </FormControl>
                             <div 
                               className="h-10 w-10 rounded-md border"
-                              style={{ backgroundColor: field.value || defaultSettings.accent_color }}
+                              style={{ backgroundColor: field.value }}
                             />
                           </div>
                           <FormMessage />
@@ -446,14 +391,14 @@ const SEOSettings = () => {
                     <div className="space-y-4">
                       <div>
                         <p className="text-sm text-gray-500 mb-1">Botão Primário</p>
-                        <Button style={{ backgroundColor: form.watch('primary_color') || defaultSettings.primary_color }}>
+                        <Button style={{ backgroundColor: form.watch('primary_color') }}>
                           Botão Primário
                         </Button>
                       </div>
                       
                       <div>
                         <p className="text-sm text-gray-500 mb-1">Botão Secundário</p>
-                        <Button style={{ backgroundColor: form.watch('secondary_color') || defaultSettings.secondary_color }}>
+                        <Button style={{ backgroundColor: form.watch('secondary_color') }}>
                           Botão Secundário
                         </Button>
                       </div>
@@ -462,7 +407,7 @@ const SEOSettings = () => {
                         <p className="text-sm text-gray-500 mb-1">Fundo de Destaque</p>
                         <div 
                           className="p-4 rounded-md"
-                          style={{ backgroundColor: form.watch('accent_color') || defaultSettings.accent_color }}
+                          style={{ backgroundColor: form.watch('accent_color') }}
                         >
                           <p>Conteúdo com fundo de destaque</p>
                         </div>
@@ -472,11 +417,7 @@ const SEOSettings = () => {
                 </TabsContent>
               </Tabs>
               
-              <Button 
-                type="submit" 
-                disabled={saving || !form.formState.isDirty}
-                className="w-full md:w-auto"
-              >
+              <Button type="submit" disabled={saving} className="w-full md:w-auto">
                 {saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -486,12 +427,6 @@ const SEOSettings = () => {
                   'Salvar Configurações'
                 )}
               </Button>
-              
-              {!form.formState.isDirty && (
-                <p className="text-sm text-gray-500 mt-2">
-                  Faça alterações nas configurações para ativar o botão de salvar.
-                </p>
-              )}
             </form>
           </Form>
         )}
