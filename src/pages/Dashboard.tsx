@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/layout/AdminLayout';
@@ -15,7 +15,8 @@ import {
   User, 
   ChevronDown,
   Loader2,
-  Check
+  Check,
+  X
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -56,7 +57,6 @@ const Dashboard = () => {
     healthHistory?: HealthHistory | null;
     treatment?: Treatment | null;
   }>({});
-  const [shareLink, setShareLink] = useState('');
   const [counts, setCounts] = useState({
     total: 0,
     rascunho: 0,
@@ -65,67 +65,75 @@ const Dashboard = () => {
   });
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const navigate = useNavigate();
 
-  // Carregar dados dos pacientes
-  useEffect(() => {
-    async function fetchPatients() {
-      try {
-        setLoading(true);
+  // Carregar dados dos pacientes - memoizado para evitar recriações desnecessárias
+  const fetchPatients = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log("Dashboard - Carregando lista de pacientes...");
+      
+      let query = supabase.from('patients').select('*').order('created_at', { ascending: false });
+      
+      // Aplicar filtro de período se necessário
+      if (periodFilter !== 'all') {
+        const now = new Date();
+        let startDate = new Date();
         
-        let query = supabase.from('patients').select('*').order('created_at', { ascending: false });
-        
-        // Aplicar filtro de período se necessário
-        if (periodFilter !== 'all') {
-          const now = new Date();
-          let startDate = new Date();
-          
-          switch (periodFilter) {
-            case '7days':
-              startDate.setDate(now.getDate() - 7);
-              break;
-            case '15days':
-              startDate.setDate(now.getDate() - 15);
-              break;
-            case '30days':
-              startDate.setDate(now.getDate() - 30);
-              break;
-            case '90days':
-              startDate.setDate(now.getDate() - 90);
-              break;
-          }
-          
-          query = query.gte('created_at', startDate.toISOString());
+        switch (periodFilter) {
+          case '7days':
+            startDate.setDate(now.getDate() - 7);
+            break;
+          case '15days':
+            startDate.setDate(now.getDate() - 15);
+            break;
+          case '30days':
+            startDate.setDate(now.getDate() - 30);
+            break;
+          case '90days':
+            startDate.setDate(now.getDate() - 90);
+            break;
         }
         
-        const { data, error } = await query;
-        
-        if (error) {
-          throw error;
-        }
-        
-        setPatients(data || []);
-        
-        // Contar por status
-        if (data) {
-          setCounts({
-            total: data.length,
-            rascunho: data.filter(p => p.status === 'rascunho').length,
-            enviado: data.filter(p => p.status === 'enviado').length,
-            assinado: data.filter(p => p.status === 'assinado').length
-          });
-        }
-      } catch (error) {
-        console.error('Erro ao carregar pacientes:', error);
-        toast.error('Erro ao carregar dados dos pacientes');
-      } finally {
-        setLoading(false);
+        query = query.gte('created_at', startDate.toISOString());
       }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Erro ao carregar pacientes:', error);
+        setError('Erro ao carregar dados dos pacientes. Tente novamente.');
+        throw error;
+      }
+      
+      console.log("Dashboard - Pacientes carregados:", data?.length || 0);
+      setPatients(data || []);
+      
+      // Contar por status
+      if (data) {
+        setCounts({
+          total: data.length,
+          rascunho: data.filter(p => p.status === 'rascunho').length,
+          enviado: data.filter(p => p.status === 'enviado').length,
+          assinado: data.filter(p => p.status === 'assinado').length
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar pacientes:', error);
+      toast.error('Erro ao carregar dados dos pacientes');
+    } finally {
+      setLoading(false);
     }
-    
-    fetchPatients();
   }, [periodFilter]);
+
+  // Carregar pacientes ao montar o componente ou mudar o filtro
+  useEffect(() => {
+    fetchPatients();
+  }, [fetchPatients]);
 
   // Filtrar pacientes por nome
   const filteredPatients = patients.filter(patient => 
@@ -137,6 +145,7 @@ const Dashboard = () => {
   const loadPatientDetails = async (patientId: string) => {
     try {
       setLoadingDetails(true);
+      console.log("Dashboard - Carregando detalhes do paciente:", patientId);
       
       // Carregar histórico de saúde
       const { data: healthData, error: healthError } = await supabase
@@ -217,6 +226,17 @@ const Dashboard = () => {
     } finally {
       setIsCopying(false);
     }
+  };
+
+  // Variável para o link de compartilhamento
+  let shareLink = '';
+  if (selectedPatient) {
+    shareLink = `${window.location.origin}/public/form?id=${selectedPatient.id}`;
+  }
+
+  // Limpar busca
+  const clearSearch = () => {
+    setSearchTerm('');
   };
 
   return (
@@ -310,10 +330,18 @@ const Dashboard = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Buscar por nome do paciente ou responsável..."
-              className="pl-10"
+              className="pl-10 pr-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            {searchTerm && (
+              <button 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                onClick={clearSearch}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
           
           <div className="w-full md:w-48">
@@ -331,6 +359,22 @@ const Dashboard = () => {
             </Select>
           </div>
         </div>
+        
+        {/* Mensagem de erro */}
+        {error && (
+          <div className="bg-red-50 text-red-700 p-4 rounded-md flex items-center gap-2">
+            <span className="flex-shrink-0">⚠️</span>
+            <p>{error}</p>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="ml-auto"
+              onClick={fetchPatients}
+            >
+              Tentar novamente
+            </Button>
+          </div>
+        )}
         
         {/* Lista de formulários */}
         {loading ? (
@@ -355,7 +399,7 @@ const Dashboard = () => {
             {searchTerm && (
               <Button 
                 variant="link" 
-                onClick={() => setSearchTerm('')}
+                onClick={clearSearch}
                 className="mt-2"
               >
                 Limpar busca

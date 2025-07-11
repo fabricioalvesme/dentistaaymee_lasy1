@@ -15,7 +15,8 @@ import {
   Scissors,
   Sun,
   MessageCircle,
-  Activity
+  Activity,
+  Loader2
 } from 'lucide-react';
 
 // Componente SVG personalizado para o ícone de dente
@@ -40,17 +41,28 @@ const ToothIcon = () => (
 );
 
 const Index = () => {
-  const { settings } = useTheme();
+  const { settings, loading } = useTheme();
 
   // Para garantir que o scroll para as seções funcione
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
       if (hash) {
-        const element = document.querySelector(hash);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
-        }
+        // Pequeno timeout para garantir que o componente foi renderizado
+        setTimeout(() => {
+          const element = document.querySelector(hash);
+          if (element) {
+            // Ajuste para o header fixo
+            const headerHeight = 80; // Altura aproximada do header
+            const elementPosition = element.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - headerHeight;
+            
+            window.scrollTo({
+              top: offsetPosition,
+              behavior: 'smooth'
+            });
+          }
+        }, 100);
       }
     };
 
@@ -114,6 +126,17 @@ const Index = () => {
     }
   ];
 
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <span className="text-lg font-medium">Carregando...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <Helmet>
@@ -122,6 +145,7 @@ const Index = () => {
           name="description" 
           content={settings?.meta_description || 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.'}
         />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Helmet>
 
@@ -216,9 +240,11 @@ const Index = () => {
       <section id="servicos" className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-4">Nossos Serviços</h2>
-          <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
-            Oferecemos uma variedade de tratamentos odontológicos para garantir a saúde bucal e o bem-estar dos nossos pacientes.
-          </p>
+          <div className="text-center text-gray-600 mb-12 max-w-2xl mx-auto" dangerouslySetInnerHTML={{ 
+            __html: settings?.services_text || `
+              <p>Oferecemos uma variedade de tratamentos odontológicos para garantir a saúde bucal e o bem-estar dos nossos pacientes.</p>
+            `
+          }} />
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {services.map((service, index) => (

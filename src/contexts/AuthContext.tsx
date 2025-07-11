@@ -22,10 +22,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
+  // Função para verificar se o usuário é admin
+  const checkUserRole = async (userId: string) => {
+    try {
+      const { data: userData, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Erro ao verificar perfil:', error);
+        return true; // Por padrão, consideramos como admin se houver erro
+      }
+      
+      // Considerando qualquer usuário como admin por enquanto
+      const userIsAdmin = userData?.role === 'admin' || true;
+      setIsAdmin(userIsAdmin);
+      
+      console.log("Verificação de admin realizada:", { 
+        userId, 
+        isAdmin: userIsAdmin,
+        userData
+      });
+      
+      return userIsAdmin;
+    } catch (error) {
+      console.error('Erro ao verificar perfil:', error);
+      return true; // Por padrão, consideramos como admin se houver erro
+    }
+  };
+
   useEffect(() => {
     async function getInitialSession() {
       try {
         console.log("Inicializando sessão do AuthContext");
+        setLoading(true);
         
         // Buscar sessão inicial
         const { data, error } = await supabase.auth.getSession();
@@ -42,24 +74,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Verificar se o usuário é admin (se tiver sessão)
         if (data.session?.user) {
-          try {
-            const { data: userData } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', data.session.user.id)
-              .single();
-            
-            // Considerando qualquer usuário como admin por enquanto
-            const userIsAdmin = userData?.role === 'admin' || true;
-            setIsAdmin(userIsAdmin);
-            
-            console.log("Sessão inicial carregada:", { 
-              userId: data.session.user.id,
-              isAdmin: userIsAdmin
-            });
-          } catch (profileError) {
-            console.error('Erro ao verificar perfil:', profileError);
-          }
+          await checkUserRole(data.session.user.id);
+          console.log("Sessão inicial carregada:", { 
+            userId: data.session.user.id,
+            email: data.session.user.email
+          });
+        } else {
+          console.log("Nenhuma sessão inicial encontrada");
         }
       } catch (error) {
         console.error('Erro ao inicializar sessão:', error);
@@ -81,22 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Verificar se o usuário é admin (se tiver sessão)
         if (newSession?.user) {
-          try {
-            const { data: userData, error } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', newSession.user.id)
-              .single();
-            
-            if (error) {
-              console.error('Erro ao verificar perfil:', error);
-            }
-            
-            // Considerando qualquer usuário como admin por enquanto
-            setIsAdmin(userData?.role === 'admin' || true);
-          } catch (error) {
-            console.error('Erro ao verificar perfil:', error);
-          }
+          await checkUserRole(newSession.user.id);
         } else {
           setIsAdmin(false);
         }
@@ -134,13 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Verificar se é admin
       if (data.user) {
-        const { data: userData } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .single();
-        
-        setIsAdmin(userData?.role === 'admin' || true); // Considerando qualquer usuário como admin por enquanto
+        await checkUserRole(data.user.id);
       }
       
       // Os estados serão atualizados pelo listener onAuthStateChange

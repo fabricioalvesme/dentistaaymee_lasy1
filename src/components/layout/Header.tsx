@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -9,9 +9,10 @@ import { toast } from 'sonner';
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading } = useAuth();
   const { settings } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Detecta o scroll para mudar o estilo do header
   useEffect(() => {
@@ -20,8 +21,14 @@ export function Header() {
     };
 
     window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Verificar posição inicial
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Fechar menu ao mudar de rota
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
 
   // Função de logout segura
   const handleSignOut = async () => {
@@ -85,7 +92,11 @@ export function Header() {
               </a>
             ))}
             
-            {user ? (
+            {loading ? (
+              <Button variant="outline" size="sm" disabled>
+                <span className="animate-pulse">Carregando...</span>
+              </Button>
+            ) : user ? (
               <div className="flex items-center space-x-4">
                 <Button 
                   variant="outline" 
@@ -147,7 +158,11 @@ export function Header() {
               
               <div className="border-t border-gray-200 pt-2 mt-2"></div>
               
-              {user ? (
+              {loading ? (
+                <div className="py-2 text-gray-400">
+                  <span className="animate-pulse">Carregando...</span>
+                </div>
+              ) : user ? (
                 <div className="flex flex-col space-y-2">
                   <Button 
                     variant="outline" 
