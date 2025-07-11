@@ -40,6 +40,11 @@ export function MonthView({ selectedDate, events, onDateSelect, onEventClick }: 
     });
   };
 
+  // Obter a cor do evento ou usar a cor padrão
+  const getEventColor = (event: Appointment) => {
+    return event.cor || '#3B82F6'; // Azul padrão se não definido
+  };
+
   return (
     <div className="grid grid-cols-7 gap-1">
       {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
@@ -79,18 +84,26 @@ export function MonthView({ selectedDate, events, onDateSelect, onEventClick }: 
             
             {hasEvents && (
               <div className="mt-1">
-                {getEventsForDay(day).slice(0, 2).map((event, i) => (
-                  <div 
-                    key={i}
-                    className="text-xs p-1 mb-1 truncate bg-primary/10 rounded"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEventClick(event);
-                    }}
-                  >
-                    {event.titulo}
-                  </div>
-                ))}
+                {getEventsForDay(day).slice(0, 2).map((event, i) => {
+                  const eventColor = getEventColor(event);
+                  
+                  return (
+                    <div 
+                      key={i}
+                      className="text-xs p-1 mb-1 truncate rounded"
+                      style={{
+                        backgroundColor: `${eventColor}20`, // 20% de opacidade
+                        borderLeft: `2px solid ${eventColor}`
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEventClick(event);
+                      }}
+                    >
+                      {event.titulo}
+                    </div>
+                  );
+                })}
                 
                 {getEventsForDay(day).length > 2 && (
                   <div className="text-xs text-gray-500 text-center">

@@ -20,6 +20,11 @@ export function DayView({ events, selectedDate, onEventClick, onAddEvent }: DayV
     return slots;
   };
 
+  // Obter a cor do evento ou usar a cor padrão
+  const getEventColor = (event: Appointment) => {
+    return event.cor || '#3B82F6'; // Azul padrão se não definido
+  };
+
   if (events.length === 0) {
     return (
       <div className="text-center py-12 bg-gray-50 rounded-md">
@@ -57,22 +62,30 @@ export function DayView({ events, selectedDate, onEventClick, onAddEvent }: DayV
             </div>
             
             <div className="flex-1 space-y-2">
-              {eventsAtTime.map(event => (
-                <div
-                  key={event.id}
-                  className="p-3 rounded-md bg-primary/10 border-l-4 border-primary cursor-pointer hover:bg-primary/20"
-                  onClick={() => onEventClick(event)}
-                >
-                  <h3 className="font-medium">{event.titulo}</h3>
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Clock className="h-3 w-3 mr-1" />
-                    <span>
-                      {new Date(event.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - 
-                      {new Date(event.data_hora_fim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+              {eventsAtTime.map(event => {
+                const eventColor = getEventColor(event);
+                
+                return (
+                  <div
+                    key={event.id}
+                    className="p-3 rounded-md border-l-4 cursor-pointer hover:bg-opacity-70"
+                    style={{
+                      backgroundColor: `${eventColor}20`, // 20% de opacidade
+                      borderLeftColor: eventColor
+                    }}
+                    onClick={() => onEventClick(event)}
+                  >
+                    <h3 className="font-medium">{event.titulo}</h3>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Clock className="h-3 w-3 mr-1" />
+                      <span>
+                        {new Date(event.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - 
+                        {new Date(event.data_hora_fim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );

@@ -15,6 +15,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const appointmentSchema = z.object({
   titulo: z.string().min(3, 'Título deve ter pelo menos 3 caracteres'),
@@ -23,6 +30,7 @@ const appointmentSchema = z.object({
   hora_inicio: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido'),
   hora_fim: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido'),
   patient_id: z.string().optional(),
+  cor: z.string().optional(),
 });
 
 export type AppointmentFormValues = z.infer<typeof appointmentSchema>;
@@ -34,12 +42,26 @@ interface EventFormProps {
   onCancel: () => void;
 }
 
+// Opções de cores para eventos
+const colorOptions = [
+  { value: "#3B82F6", label: "Azul (Padrão)" },
+  { value: "#10B981", label: "Verde" },
+  { value: "#F59E0B", label: "Amarelo" },
+  { value: "#EF4444", label: "Vermelho" },
+  { value: "#8B5CF6", label: "Roxo" },
+  { value: "#EC4899", label: "Rosa" },
+  { value: "#6B7280", label: "Cinza" },
+];
+
 export function EventForm({ defaultValues, onSubmit, isEditing, onCancel }: EventFormProps) {
   const [submitting, setSubmitting] = useState(false);
   
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
-    defaultValues,
+    defaultValues: {
+      ...defaultValues,
+      cor: defaultValues.cor || "#3B82F6" // Cor padrão se não definida
+    },
   });
 
   const handleSubmit = async (data: AppointmentFormValues) => {
@@ -66,6 +88,40 @@ export function EventForm({ defaultValues, onSubmit, isEditing, onCancel }: Even
               <FormControl>
                 <Input {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="cor"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Cor do evento</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                defaultValue={field.value || "#3B82F6"}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma cor" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {colorOptions.map((color) => (
+                    <SelectItem key={color.value} value={color.value}>
+                      <div className="flex items-center">
+                        <div 
+                          className="w-4 h-4 rounded-full mr-2" 
+                          style={{ backgroundColor: color.value }}
+                        />
+                        {color.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

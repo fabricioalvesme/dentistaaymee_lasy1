@@ -121,4 +121,5 @@ export type Appointment = {
   data_hora_inicio: string;
   data_hora_fim: string;
   patient_id?: string;
+  cor?: string; // Nova propriedade para cor do evento
 };

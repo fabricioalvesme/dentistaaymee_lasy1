@@ -100,6 +100,7 @@ export function useAppointments() {
         data_hora_inicio: startDate.toISOString(),
         data_hora_fim: endDate.toISOString(),
         patient_id: data.patient_id || null,
+        cor: data.cor || '#3B82F6', // Cor padrão se não definida
       };
       
       let result;

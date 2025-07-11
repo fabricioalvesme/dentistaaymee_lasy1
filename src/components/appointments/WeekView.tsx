@@ -38,6 +38,11 @@ export function WeekView({ selectedDate, events, onEventClick }: WeekViewProps) 
     });
   };
 
+  // Obter a cor do evento ou usar a cor padrão
+  const getEventColor = (event: Appointment) => {
+    return event.cor || '#3B82F6'; // Azul padrão se não definido
+  };
+
   return (
     <div className="grid grid-cols-7 gap-2">
       {generateWeekDays(selectedDate).map((day, index) => (
@@ -51,21 +56,29 @@ export function WeekView({ selectedDate, events, onEventClick }: WeekViewProps) 
           </div>
           
           <div className="space-y-2">
-            {getEventsForDay(day).map(event => (
-              <div
-                key={event.id}
-                className="p-2 rounded-md bg-primary/10 border-l-4 border-primary cursor-pointer hover:bg-primary/20 text-left"
-                onClick={() => onEventClick(event)}
-              >
-                <h4 className="font-medium text-sm truncate">{event.titulo}</h4>
-                <div className="flex items-center text-xs text-gray-500">
-                  <Clock className="h-3 w-3 mr-1" />
-                  <span>
-                    {new Date(event.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+            {getEventsForDay(day).map(event => {
+              const eventColor = getEventColor(event);
+              
+              return (
+                <div
+                  key={event.id}
+                  className="p-2 rounded-md border-l-4 cursor-pointer hover:bg-opacity-70 text-left"
+                  style={{
+                    backgroundColor: `${eventColor}20`, // 20% de opacidade
+                    borderLeftColor: eventColor
+                  }}
+                  onClick={() => onEventClick(event)}
+                >
+                  <h4 className="font-medium text-sm truncate">{event.titulo}</h4>
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Clock className="h-3 w-3 mr-1" />
+                    <span>
+                      {new Date(event.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             
             {getEventsForDay(day).length === 0 && (
               <div className="h-8 flex items-center justify-center">
