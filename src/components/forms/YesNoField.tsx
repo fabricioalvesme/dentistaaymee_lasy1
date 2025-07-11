@@ -11,6 +11,7 @@ interface YesNoFieldProps {
   detailName: string;
   label: string;
   description?: string;
+  defaultValue?: boolean;
 }
 
 export function YesNoField({
@@ -18,7 +19,8 @@ export function YesNoField({
   name,
   detailName,
   label,
-  description
+  description,
+  defaultValue = false
 }: YesNoFieldProps) {
   const [showDetail, setShowDetail] = useState(false);
 
@@ -30,7 +32,7 @@ export function YesNoField({
         render={({ field }) => {
           // Atualiza o estado quando o valor do campo muda
           useEffect(() => {
-            setShowDetail(field.value === "sim");
+            setShowDetail(field.value === true);
           }, [field.value]);
 
           return (
@@ -39,10 +41,11 @@ export function YesNoField({
               <FormControl>
                 <RadioGroup
                   onValueChange={(value) => {
-                    field.onChange(value);
+                    field.onChange(value === "sim");
                     setShowDetail(value === "sim");
                   }}
-                  defaultValue={field.value}
+                  defaultValue={field.value ? "sim" : "nao"}
+                  value={field.value ? "sim" : "nao"}
                   className="flex space-x-4"
                 >
                   <div className="flex items-center space-x-2">
