@@ -126,7 +126,7 @@ const Notifications = () => {
     
     const matchesSearch = searchTerm ? 
       (patient?.nome.toLowerCase().includes(searchTermLower) || 
-       patient?.telefone.includes(searchTerm)) : true;
+       (patient?.telefone && patient.telefone.includes(searchTerm))) : true;
 
     if (!matchesSearch) return false;
 
@@ -247,32 +247,39 @@ const Notifications = () => {
             <CardDescription>Todos os lembretes e notificações cadastrados no sistema</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4 mb-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input placeholder="Buscar..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              </div>
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
-                <TabsList className="grid grid-cols-4 w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input placeholder="Buscar..." className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                </div>
+                <TabsList className="grid grid-cols-4 w-full sm:w-auto">
                   <TabsTrigger value="all">Todos</TabsTrigger>
                   <TabsTrigger value="upcoming">Próximos</TabsTrigger>
                   <TabsTrigger value="past">Passados</TabsTrigger>
                   <TabsTrigger value="manual">Manuais</TabsTrigger>
                 </TabsList>
-              </Tabs>
-            </div>
-            
-            {loadingReminders ? (
-              <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-            ) : (
-              <TabsContent value={activeTab} className="mt-0">
-                {activeTab === 'manual' ? (
-                  <ManualNotificationsTable notifications={filteredManualNotifications} onDelete={handleDeleteManual} />
-                ) : (
-                  <ReminderTable reminders={filteredReminders} patientMap={patientMap} onDelete={handleDeleteReminder} onSendMessage={(reminder) => { const patient = patientMap[reminder.patient_id]; if (patient) { const message = getReturnMessage(reminder, patient.nome); openWhatsApp(patient.telefone, message); }}} />
-                )}
-              </TabsContent>
-            )}
+              </div>
+              
+              {loadingReminders ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+              ) : (
+                <>
+                  <TabsContent value="all">
+                    <ReminderTable reminders={filteredReminders} patientMap={patientMap} onDelete={handleDeleteReminder} onSendMessage={(reminder) => { const patient = patientMap[reminder.patient_id]; if (patient) { const message = getReturnMessage(reminder, patient.nome); openWhatsApp(patient.telefone, message); }}} />
+                  </TabsContent>
+                  <TabsContent value="upcoming">
+                    <ReminderTable reminders={filteredReminders} patientMap={patientMap} onDelete={handleDeleteReminder} onSendMessage={(reminder) => { const patient = patientMap[reminder.patient_id]; if (patient) { const message = getReturnMessage(reminder, patient.nome); openWhatsApp(patient.telefone, message); }}} />
+                  </TabsContent>
+                  <TabsContent value="past">
+                    <ReminderTable reminders={filteredReminders} patientMap={patientMap} onDelete={handleDeleteReminder} onSendMessage={(reminder) => { const patient = patientMap[reminder.patient_id]; if (patient) { const message = getReturnMessage(reminder, patient.nome); openWhatsApp(patient.telefone, message); }}} />
+                  </TabsContent>
+                  <TabsContent value="manual">
+                    <ManualNotificationsTable notifications={filteredManualNotifications} onDelete={handleDeleteManual} />
+                  </TabsContent>
+                </>
+              )}
+            </Tabs>
           </CardContent>
         </Card>
       </div>

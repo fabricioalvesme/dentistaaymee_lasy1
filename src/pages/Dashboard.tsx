@@ -175,7 +175,7 @@ const Dashboard = () => {
       if (error) throw error;
 
       toast.success('Paciente e todos os seus dados foram excluídos com sucesso.');
-      setPatients(prev => prev.filter(p => p.id !== patientId));
+      await fetchPatients(); // Recarrega a lista de pacientes
     } catch (error: any) {
       console.error('Erro ao excluir paciente:', error);
       toast.error('Erro ao excluir paciente: ' + error.message);

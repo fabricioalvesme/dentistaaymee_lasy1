@@ -160,7 +160,7 @@ export function useAppointments() {
       console.log("Evento excluído com sucesso");
       toast.success('Evento excluído com sucesso');
       
-      setAppointments(prev => prev.filter(a => a.id !== event.id));
+      await loadAppointments(); // Recarrega a lista após a exclusão
       return true;
     } catch (error: any) {
       console.error('Erro ao excluir evento:', error);

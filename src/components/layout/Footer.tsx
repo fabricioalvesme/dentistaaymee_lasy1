@@ -5,7 +5,7 @@ export function Footer() {
   const { settings } = useTheme();
   
   // Informações de contato atualizadas
-  const whatsapp = "556492527548";
+  const whatsapp = "5564992527548";
   const instagram = "@dra.aymeefrauzino_";
   const instagramUrl = "https://www.instagram.com/dra.aymeefrauzino_";
   const endereco = "Rua Maestro Vicente José Vieira, 358 – Morrinhos, GO – CEP 75650-270";

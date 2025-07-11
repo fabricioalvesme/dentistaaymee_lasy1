@@ -166,7 +166,7 @@ const PublicForm = () => {
   // Método para redirecionar para WhatsApp com mensagem
   const redirectToWhatsApp = () => {
     try {
-      const phone = "556492527548";
+      const phone = "5564992527548";
       const message = encodeURIComponent("Pronto, acabei de assinar o documento.");
       
       // URL para WhatsApp Web/App
