@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import { useState, useEffect } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -40,6 +40,7 @@ interface EventFormProps {
   onSubmit: (data: AppointmentFormValues) => Promise<void>;
   isEditing: boolean;
   onCancel: () => void;
+  isSaving?: boolean;
 }
 
 // Opções de cores para eventos
@@ -53,7 +54,7 @@ const colorOptions = [
   { value: "#6B7280", label: "Cinza" },
 ];
 
-export function EventForm({ defaultValues, onSubmit, isEditing, onCancel }: EventFormProps) {
+export function EventForm({ defaultValues, onSubmit, isEditing, onCancel, isSaving = false }: EventFormProps) {
   const [submitting, setSubmitting] = useState(false);
   
   const form = useForm<AppointmentFormValues>({
@@ -63,6 +64,11 @@ export function EventForm({ defaultValues, onSubmit, isEditing, onCancel }: Even
       cor: defaultValues.cor || "#3B82F6" // Cor padrão se não definida
     },
   });
+
+  // Atualizar o formulário quando os valores padrão mudarem
+  useEffect(() => {
+    form.reset(defaultValues);
+  }, [form, defaultValues]);
 
   const handleSubmit = async (data: AppointmentFormValues) => {
     try {
@@ -102,6 +108,7 @@ export function EventForm({ defaultValues, onSubmit, isEditing, onCancel }: Even
               <Select
                 onValueChange={field.onChange}
                 defaultValue={field.value || "#3B82F6"}
+                value={field.value}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -214,9 +221,9 @@ export function EventForm({ defaultValues, onSubmit, isEditing, onCancel }: Even
           
           <Button 
             type="submit" 
-            disabled={submitting}
+            disabled={submitting || isSaving}
           >
-            {submitting ? (
+            {submitting || isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {isEditing ? 'Salvando...' : 'Adicionando...'}

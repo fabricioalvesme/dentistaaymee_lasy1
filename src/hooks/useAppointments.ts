@@ -7,6 +7,7 @@ export function useAppointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Carregar consultas
   useEffect(() => {
@@ -75,7 +76,7 @@ export function useAppointments() {
     selectedEvent: Appointment | null = null
   ): Promise<boolean> => {
     try {
-      setLoading(true);
+      setSaving(true);
       console.log("Salvando compromisso:", { data, isEditing: !!selectedEvent });
       
       // Converter para ISO string
@@ -90,7 +91,7 @@ export function useAppointments() {
       
       if (startDate >= endDate) {
         toast.error('A hora de início deve ser anterior à hora de fim');
-        setLoading(false);
+        setSaving(false);
         return false;
       }
       
@@ -108,11 +109,15 @@ export function useAppointments() {
       if (selectedEvent && selectedEvent.id) {
         // Atualizar evento existente
         console.log("Atualizando evento existente:", selectedEvent.id);
+        console.log("Dados para atualização:", appointmentData);
+        
         result = await supabase
           .from('appointments')
           .update(appointmentData)
           .eq('id', selectedEvent.id)
           .select();
+          
+        console.log("Resultado da atualização:", result);
       } else {
         // Criar novo evento
         console.log("Criando novo evento");
@@ -139,7 +144,7 @@ export function useAppointments() {
       toast.error('Erro ao salvar evento: ' + (error.message || 'Erro desconhecido'));
       return false;
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -178,6 +183,7 @@ export function useAppointments() {
   return {
     appointments,
     loading,
+    saving,
     deleting,
     getUpcomingEvents,
     getEventsForDay,

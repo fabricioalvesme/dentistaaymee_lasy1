@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { Notification, Reminder, BirthdayNotification } from '@/lib/types/reminder';
+import { Notification, Reminder, BirthdayNotification, ManualNotification } from '@/lib/types/reminder';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 
@@ -36,6 +36,19 @@ export function useNotifications() {
         console.error('Erro ao carregar aniversariantes:', birthdaysError);
         throw birthdaysError;
       }
+      
+      // Carregar notificações manuais não enviadas
+      const { data: manualNotifs, error: manualError } = await supabase
+        .from('manual_notifications')
+        .select('*')
+        .eq('sent', false)
+        .lte('notify_at', new Date().toISOString())
+        .order('notify_at', { ascending: true });
+        
+      if (manualError) {
+        console.error('Erro ao carregar notificações manuais:', manualError);
+        throw manualError;
+      }
 
       // Converter aniversariantes para notificações
       const birthdayNotifications: BirthdayNotification[] = (birthdays || []).map(birthday => ({
@@ -47,11 +60,24 @@ export function useNotifications() {
         type: 'birthday',
         virtual: true
       }));
+      
+      // Converter notificações manuais para o formato padrão
+      const manualNotifications: ManualNotification[] = (manualNotifs || []).map(notif => ({
+        id: notif.id,
+        titulo: notif.titulo,
+        mensagem: notif.mensagem,
+        notify_at: notif.notify_at,
+        telefone: notif.telefone,
+        sent: notif.sent,
+        created_at: notif.created_at,
+        type: 'manual'
+      }));
 
-      // Combinar os dois tipos de notificações
+      // Combinar os três tipos de notificações
       const allNotifications: Notification[] = [
         ...(reminders || []),
-        ...birthdayNotifications
+        ...birthdayNotifications,
+        ...manualNotifications
       ];
 
       console.log('Notificações carregadas:', allNotifications.length);
@@ -88,15 +114,33 @@ export function useNotifications() {
         return true;
       }
       
-      // Atualizar no banco de dados
-      const { error } = await supabase
-        .from('reminders')
-        .update({ sent: true })
-        .eq('id', id);
+      // Verificar se é uma notificação manual
+      const isManualNotification = notifications.some(n => 
+        n.id === id && n.type === 'manual'
+      );
       
-      if (error) {
-        console.error('Erro ao marcar notificação como enviada:', error);
-        throw error;
+      if (isManualNotification) {
+        // Atualizar no banco de dados (tabela manual_notifications)
+        const { error } = await supabase
+          .from('manual_notifications')
+          .update({ sent: true })
+          .eq('id', id);
+        
+        if (error) {
+          console.error('Erro ao marcar notificação manual como enviada:', error);
+          throw error;
+        }
+      } else {
+        // Atualizar no banco de dados (tabela reminders)
+        const { error } = await supabase
+          .from('reminders')
+          .update({ sent: true })
+          .eq('id', id);
+        
+        if (error) {
+          console.error('Erro ao marcar notificação como enviada:', error);
+          throw error;
+        }
       }
       
       // Atualizar estado local
@@ -172,6 +216,39 @@ export function useNotifications() {
     }
   };
   
+  // Criar uma notificação manual
+  const createManualNotification = async (
+    titulo: string,
+    mensagem: string,
+    notifyAt: Date,
+    telefone?: string
+  ) => {
+    try {
+      const { data, error } = await supabase
+        .from('manual_notifications')
+        .insert([{
+          titulo,
+          mensagem,
+          notify_at: notifyAt.toISOString(),
+          telefone: telefone || null,
+          sent: false,
+          created_at: new Date().toISOString()
+        }])
+        .select();
+      
+      if (error) {
+        console.error('Erro ao criar notificação manual:', error);
+        throw error;
+      }
+      
+      return data?.[0] || null;
+    } catch (error) {
+      console.error('Erro ao criar notificação manual:', error);
+      toast.error('Erro ao criar notificação manual');
+      return null;
+    }
+  };
+  
   // Obter os lembretes de um paciente
   const getPatientReminders = async (patientId: string) => {
     try {
@@ -214,6 +291,48 @@ export function useNotifications() {
       return false;
     }
   };
+
+  // Excluir uma notificação manual
+  const deleteManualNotification = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('manual_notifications')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Erro ao excluir notificação manual:', error);
+        throw error;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao excluir notificação manual:', error);
+      toast.error('Erro ao excluir notificação manual');
+      return false;
+    }
+  };
+  
+  // Carregar todas as notificações manuais (para exibição em tabela)
+  const getAllManualNotifications = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('manual_notifications')
+        .select('*')
+        .order('notify_at', { ascending: false });
+      
+      if (error) {
+        console.error('Erro ao carregar notificações manuais:', error);
+        throw error;
+      }
+      
+      return data || [];
+    } catch (error) {
+      console.error('Erro ao carregar notificações manuais:', error);
+      toast.error('Erro ao carregar notificações manuais');
+      return [];
+    }
+  };
   
   return {
     notifications,
@@ -225,7 +344,10 @@ export function useNotifications() {
     getReturnMessage,
     getBirthdayMessage,
     createReturnReminder,
+    createManualNotification,
     getPatientReminders,
-    deleteReminder
+    deleteReminder,
+    deleteManualNotification,
+    getAllManualNotifications
   };
 }

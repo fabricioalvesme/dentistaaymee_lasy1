@@ -1,4 +1,4 @@
-export type ReminderType = 'return' | 'birthday';
+export type ReminderType = 'return' | 'birthday' | 'manual';
 
 export interface Reminder {
   id: string;
@@ -22,4 +22,15 @@ export interface BirthdayNotification {
   virtual: true; // Marca como notificação virtual (não persistida na tabela reminders)
 }
 
-export type Notification = Reminder | BirthdayNotification;
+export interface ManualNotification {
+  id: string;
+  titulo: string;
+  mensagem: string;
+  notify_at: string;
+  telefone: string | null;
+  sent: boolean;
+  created_at: string;
+  type: 'manual';
+}
+
+export type Notification = Reminder | BirthdayNotification | ManualNotification;

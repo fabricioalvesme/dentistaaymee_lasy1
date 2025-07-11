@@ -16,9 +16,9 @@ import {
 } from '@/components/ui/drawer';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Bell, MessageCircle, Check, AlertCircle, CalendarClock, Calendar } from 'lucide-react';
+import { Bell, MessageCircle, Check, AlertCircle, CalendarClock, Calendar, NotebookText } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Notification, Reminder, BirthdayNotification } from '@/lib/types/reminder';
+import { Notification, Reminder, BirthdayNotification, ManualNotification } from '@/lib/types/reminder';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatRelativeTime, formatDate } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +44,7 @@ export function NotificationPopover() {
   const loadPatientNames = async (notifications: Notification[]) => {
     try {
       // Filtrar apenas os lembretes do tipo retorno (não aniversários)
-      const reminders = notifications.filter(n => !('virtual' in n)) as Reminder[];
+      const reminders = notifications.filter(n => !('virtual' in n) && n.type === 'return') as Reminder[];
       
       // Obter IDs únicos de pacientes
       const patientIds = [...new Set(reminders.map(r => r.patient_id))];
@@ -132,6 +132,69 @@ export function NotificationPopover() {
               <MessageCircle className="h-3.5 w-3.5 mr-1" />
               Enviar mensagem
             </Button>
+            
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8"
+              onClick={() => {
+                markAsSent(notification.id);
+                toast.success('Notificação removida');
+              }}
+            >
+              <Check className="h-3.5 w-3.5 mr-1" />
+              Marcar como visto
+            </Button>
+          </div>
+        </div>
+      );
+    } else if (notification.type === 'manual') {
+      // É uma notificação manual
+      const manualNotif = notification as ManualNotification;
+      
+      return (
+        <div className="py-3 space-y-2">
+          <div className="flex items-start gap-3">
+            <Avatar className="h-9 w-9 bg-purple-100">
+              <AvatarFallback className="bg-purple-100 text-purple-600">
+                <NotebookText className="h-5 w-5" />
+              </AvatarFallback>
+            </Avatar>
+            
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{manualNotif.titulo}</span>
+                <Badge variant="outline" className="bg-purple-50 text-purple-600 border-purple-100">
+                  Manual
+                </Badge>
+              </div>
+              
+              <p className="text-sm text-gray-600">
+                {manualNotif.mensagem}
+              </p>
+              
+              <div className="text-xs text-gray-500">
+                Criada em {formatDate(manualNotif.created_at)}
+              </div>
+            </div>
+          </div>
+          
+          <div className="pl-12 flex flex-wrap gap-2">
+            {manualNotif.telefone && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8"
+                onClick={() => {
+                  openWhatsApp(manualNotif.telefone!, manualNotif.mensagem);
+                  markAsSent(notification.id);
+                  toast.success('Mensagem enviada');
+                }}
+              >
+                <MessageCircle className="h-3.5 w-3.5 mr-1" />
+                Enviar mensagem
+              </Button>
+            )}
             
             <Button
               size="sm"

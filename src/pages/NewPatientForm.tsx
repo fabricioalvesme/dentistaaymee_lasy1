@@ -188,6 +188,7 @@ const NewPatientForm = () => {
   const [shareLink, setShareLink] = useState('');
   const [isCopying, setIsCopying] = useState(false);
   const [patientReminders, setPatientReminders] = useState<Reminder[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   
   const { getPatientReminders } = useNotifications();
   
@@ -286,10 +287,16 @@ const NewPatientForm = () => {
 
   // Carregar lembretes de retorno do paciente
   const loadPatientReminders = async (patientId: string) => {
-    const reminders = await getPatientReminders(patientId);
-    // Filtrar apenas lembretes de retorno
-    const returnReminders = reminders.filter(r => r.type === 'return');
-    setPatientReminders(returnReminders);
+    try {
+      const reminders = await getPatientReminders(patientId);
+      // Filtrar apenas lembretes de retorno
+      const returnReminders = reminders.filter(r => r.type === 'return');
+      setPatientReminders(returnReminders);
+      return returnReminders;
+    } catch (error) {
+      console.error("Erro ao carregar lembretes:", error);
+      return [];
+    }
   };
 
   // Carregar dados do paciente se estiver editando
@@ -298,6 +305,7 @@ const NewPatientForm = () => {
       async function loadPatient() {
         try {
           setLoading(true);
+          setLoadError(null);
           console.log("Carregando dados do paciente:", id);
           
           // Buscar dados do paciente
@@ -309,14 +317,17 @@ const NewPatientForm = () => {
           
           if (patientError) {
             console.error("Erro ao carregar paciente:", patientError);
+            setLoadError('Erro ao carregar dados do paciente');
             toast.error('Erro ao carregar dados do paciente');
+            setLoading(false);
             return;
           }
           
           if (!patient) {
             console.error("Paciente não encontrado");
+            setLoadError('Paciente não encontrado');
             toast.error('Paciente não encontrado');
-            navigate('/admin/dashboard');
+            setLoading(false);
             return;
           }
           
@@ -331,6 +342,7 @@ const NewPatientForm = () => {
           
           if (historyError && historyError.code !== 'PGRST116') {
             console.error("Erro ao carregar histórico de saúde:", historyError);
+            // Não interrompe o fluxo, apenas loga o erro
           }
           
           console.log("Histórico de saúde:", healthHistory);
@@ -344,22 +356,24 @@ const NewPatientForm = () => {
           
           if (treatmentError && treatmentError.code !== 'PGRST116') {
             console.error("Erro ao carregar plano de tratamento:", treatmentError);
+            // Não interrompe o fluxo, apenas loga o erro
           }
           
           console.log("Plano de tratamento:", treatment);
           
           // Carregar lembretes de retorno do paciente
-          await loadPatientReminders(id);
+          const reminders = await loadPatientReminders(id);
+          console.log("Lembretes de retorno:", reminders);
           
           // Preencher formulário com dados
           form.reset({
             // Dados pessoais
-            nome: patient.nome,
-            data_nascimento: patient.data_nascimento,
-            endereco: patient.endereco,
-            nome_responsavel: patient.nome_responsavel,
-            cpf: patient.cpf,
-            telefone: patient.telefone,
+            nome: patient.nome || '',
+            data_nascimento: patient.data_nascimento || '',
+            endereco: patient.endereco || '',
+            nome_responsavel: patient.nome_responsavel || '',
+            cpf: patient.cpf || '',
+            telefone: patient.telefone || '',
             observacoes: patient.observacoes || '',
             
             // Informações básicas
@@ -457,19 +471,19 @@ const NewPatientForm = () => {
             problemas_gestacao: healthHistory?.problemas_gestacao || '',
             presenca_doenca: healthHistory?.presenca_doenca || '',
             idade_primeiro_dente: healthHistory?.idade_primeiro_dente || '',
-            anestesia_odontologica: healthHistory?.anestesia_odontologica || false,
+            anestesia_odontologica: healthHistory?.anestesia_odontologica !== undefined ? healthHistory.anestesia_odontologica : false,
             frequencia_escovacao: healthHistory?.frequencia_escovacao || '',
             creme_dental: healthHistory?.creme_dental || '',
-            contem_fluor: healthHistory?.contem_fluor || true,
-            uso_fio_dental: healthHistory?.uso_fio_dental || false,
+            contem_fluor: healthHistory?.contem_fluor !== undefined ? healthHistory.contem_fluor : true,
+            uso_fio_dental: healthHistory?.uso_fio_dental !== undefined ? healthHistory.uso_fio_dental : false,
             quem_realiza_escovacao: healthHistory?.quem_realiza_escovacao || '',
-            uso_mamadeira: healthHistory?.uso_mamadeira || false,
+            uso_mamadeira: healthHistory?.uso_mamadeira !== undefined ? healthHistory.uso_mamadeira : false,
             refeicoes_diarias: healthHistory?.refeicoes_diarias || '',
             fonte_acucar: healthHistory?.fonte_acucar || '',
-            habito_succao: healthHistory?.habito_succao || false,
-            roer_unhas: healthHistory?.roer_unhas || false,
-            dormir_boca_aberta: healthHistory?.dormir_boca_aberta || false,
-            vacinacao_dia: healthHistory?.vacinacao_dia || true,
+            habito_succao: healthHistory?.habito_succao !== undefined ? healthHistory.habito_succao : false,
+            roer_unhas: healthHistory?.roer_unhas !== undefined ? healthHistory.roer_unhas : false,
+            dormir_boca_aberta: healthHistory?.dormir_boca_aberta !== undefined ? healthHistory.dormir_boca_aberta : false,
+            vacinacao_dia: healthHistory?.vacinacao_dia !== undefined ? healthHistory.vacinacao_dia : true,
             problemas_cardiacos: healthHistory?.problemas_cardiacos || '',
             problemas_renais: healthHistory?.problemas_renais || '',
             problemas_gastricos: healthHistory?.problemas_gastricos || '',
@@ -482,9 +496,12 @@ const NewPatientForm = () => {
             plano_tratamento: treatment?.plano_tratamento || '',
           });
           
+          console.log("Formulário preenchido com dados carregados");
+          
         } catch (error) {
           console.error("Erro ao carregar dados:", error);
-          toast.error('Erro ao carregar dados');
+          setLoadError('Erro ao carregar dados do formulário');
+          toast.error('Erro ao carregar dados do formulário');
         } finally {
           setLoading(false);
         }
@@ -818,7 +835,7 @@ const NewPatientForm = () => {
 
   // Handler para quando um lembrete é criado
   const handleReminderCreated = (reminder: Reminder) => {
-    setReminders(prev => [...prev, reminder]);
+    setPatientReminders(prev => [...prev, reminder]);
   };
 
   return (
@@ -836,6 +853,24 @@ const NewPatientForm = () => {
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : loadError ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
+            <p className="font-medium">{loadError}</p>
+            <p className="mt-2">Tente novamente ou volte para o dashboard.</p>
+            <div className="mt-4 flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => window.location.reload()}
+              >
+                Tentar novamente
+              </Button>
+              <Button 
+                onClick={() => navigate('/admin/dashboard')}
+              >
+                Voltar para o Dashboard
+              </Button>
+            </div>
           </div>
         ) : (
           <Form {...form}>

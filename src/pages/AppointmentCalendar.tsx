@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { supabase, Appointment } from '@/lib/supabaseClient';
 import { 
   Plus, 
   Loader2, 
   Calendar as CalendarIcon,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  X
 } from 'lucide-react';
 import {
   Dialog,
@@ -35,10 +38,12 @@ const AppointmentCalendar = () => {
     appointments,
     loading,
     deleting,
+    saving,
     getUpcomingEvents,
     getEventsForDay,
     saveAppointment,
-    deleteAppointment
+    deleteAppointment,
+    loadAppointments
   } = useAppointments();
   
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -47,7 +52,9 @@ const AppointmentCalendar = () => {
   const [selectedEvent, setSelectedEvent] = useState<Appointment | null>(null);
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   const [showCalendar, setShowCalendar] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   // Abrir diálogo para adicionar evento
   const handleAddEvent = () => {
@@ -60,7 +67,8 @@ const AppointmentCalendar = () => {
       data: selectedDate,
       hora_inicio: '09:00',
       hora_fim: '10:00',
-      patient_id: undefined
+      patient_id: undefined,
+      cor: '#3B82F6'
     };
     
     setShowDialog(true);
@@ -76,18 +84,6 @@ const AppointmentCalendar = () => {
   // Editar evento
   const handleEditEvent = () => {
     if (!selectedEvent) return;
-    
-    const startDate = new Date(selectedEvent.data_hora_inicio);
-    const endDate = new Date(selectedEvent.data_hora_fim);
-    
-    const defaultValues: AppointmentFormValues = {
-      titulo: selectedEvent.titulo,
-      descricao: selectedEvent.descricao || '',
-      data: startDate,
-      hora_inicio: startDate.toTimeString().substring(0, 5),
-      hora_fim: endDate.toTimeString().substring(0, 5),
-      patient_id: selectedEvent.patient_id,
-    };
     
     setShowEventDialog(false);
     setShowDialog(true);
@@ -136,7 +132,6 @@ const AppointmentCalendar = () => {
       const success = await saveAppointment(data, selectedEvent);
       if (success) {
         setShowDialog(false);
-        toast.success(selectedEvent ? 'Evento atualizado com sucesso' : 'Evento criado com sucesso');
       }
     } catch (error) {
       console.error("Erro ao salvar evento:", error);
@@ -196,6 +191,14 @@ const AppointmentCalendar = () => {
     }
   };
 
+  // Filtrar eventos por título
+  const filteredEvents = searchTerm 
+    ? appointments.filter(event => 
+        event.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (event.descricao && event.descricao.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    : appointments;
+
   return (
     <AdminLayout>
       <Helmet>
@@ -225,6 +228,24 @@ const AppointmentCalendar = () => {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Barra de pesquisa */}
+            <div className="relative">
+              <Input
+                placeholder="Buscar eventos por título ou descrição..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pr-10"
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            
             {/* Card de data selecionada e controles */}
             <Card>
               <CardHeader className="pb-2">
@@ -302,7 +323,7 @@ const AppointmentCalendar = () => {
                   <CalendarView 
                     selectedDate={selectedDate}
                     onDateSelect={handleDateChange}
-                    appointments={appointments}
+                    appointments={filteredEvents}
                     upcomingEvents={getUpcomingEvents()}
                     onEventClick={handleEventClick}
                   />
@@ -314,7 +335,11 @@ const AppointmentCalendar = () => {
                     <Tabs value={viewMode} className="mt-0">
                       <TabsContent value="day">
                         <DayView
-                          events={getEventsForDay(selectedDate)}
+                          events={getEventsForDay(selectedDate).filter(event => 
+                            !searchTerm || 
+                            event.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (event.descricao && event.descricao.toLowerCase().includes(searchTerm.toLowerCase()))
+                          )}
                           selectedDate={selectedDate}
                           onEventClick={handleEventClick}
                           onAddEvent={handleAddEvent}
@@ -324,7 +349,7 @@ const AppointmentCalendar = () => {
                       <TabsContent value="week">
                         <WeekView
                           selectedDate={selectedDate}
-                          events={appointments}
+                          events={filteredEvents}
                           onEventClick={handleEventClick}
                         />
                       </TabsContent>
@@ -332,7 +357,7 @@ const AppointmentCalendar = () => {
                       <TabsContent value="month">
                         <MonthView
                           selectedDate={selectedDate}
-                          events={appointments}
+                          events={filteredEvents}
                           onDateSelect={(date) => {
                             setSelectedDate(date);
                             setViewMode('day');
@@ -373,10 +398,12 @@ const AppointmentCalendar = () => {
                 ? new Date(selectedEvent.data_hora_fim).toTimeString().substring(0, 5) 
                 : '10:00',
               patient_id: selectedEvent?.patient_id,
+              cor: selectedEvent?.cor || '#3B82F6',
             }}
             onSubmit={onSubmit}
             isEditing={!!selectedEvent}
             onCancel={() => setShowDialog(false)}
+            isSaving={saving}
           />
         </DialogContent>
       </Dialog>
