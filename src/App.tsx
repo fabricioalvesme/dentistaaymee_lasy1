@@ -16,6 +16,7 @@ import NewPatientForm from "./pages/NewPatientForm";
 import PublicForm from "./pages/PublicForm";
 import AppointmentCalendar from "./pages/AppointmentCalendar";
 import SEOSettings from "./pages/SEOSettings";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -72,6 +73,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <AppointmentCalendar />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/admin/notifications" 
+                  element={
+                    <ProtectedRoute>
+                      <Notifications />
                     </ProtectedRoute>
                   } 
                 />

@@ -41,6 +41,9 @@ import { RadioGroupField } from '@/components/forms/RadioGroupField';
 import { CheckboxField } from '@/components/forms/CheckboxField';
 import { YesNoField } from '@/components/forms/YesNoField';
 import { copyToClipboard } from '@/lib/utils';
+import { ReturnScheduler } from '@/components/patient/ReturnScheduler';
+import { Reminder } from '@/lib/types/reminder';
+import { useNotifications } from '@/hooks/useNotifications';
 
 // Schema para o formulário de paciente
 const patientSchema = z.object({
@@ -99,6 +102,9 @@ const NewPatientForm = () => {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [isCopying, setIsCopying] = useState(false);
+  const [patientReminders, setPatientReminders] = useState<Reminder[]>([]);
+  
+  const { getPatientReminders } = useNotifications();
   
   // Inicializar formulário com valores padrão
   const form = useForm<PatientFormValues>({
@@ -143,6 +149,14 @@ const NewPatientForm = () => {
       plano_tratamento: '',
     }
   });
+
+  // Carregar lembretes de retorno do paciente
+  const loadPatientReminders = async (patientId: string) => {
+    const reminders = await getPatientReminders(patientId);
+    // Filtrar apenas lembretes de retorno
+    const returnReminders = reminders.filter(r => r.type === 'return');
+    setPatientReminders(returnReminders);
+  };
 
   // Carregar dados do paciente se estiver editando
   useEffect(() => {
@@ -200,6 +214,9 @@ const NewPatientForm = () => {
           
           console.log("Plano de tratamento:", treatment);
           
+          // Carregar lembretes de retorno do paciente
+          await loadPatientReminders(id);
+          
           // Preencher formulário com dados
           form.reset({
             // Dados pessoais
@@ -256,7 +273,7 @@ const NewPatientForm = () => {
       
       loadPatient();
     }
-  }, [id, navigate, form]);
+  }, [id, navigate, form, getPatientReminders]);
 
   // Função para validar a aba atual e passar para a próxima
   const validateTabAndContinue = async () => {
@@ -280,6 +297,9 @@ const NewPatientForm = () => {
         if (isValid) {
           setActiveTab('plano-tratamento');
         }
+      } else if (activeTab === 'plano-tratamento') {
+        // Se já está na aba de plano de tratamento, pular para retorno
+        setActiveTab('agendamento-retorno');
       }
     } catch (error) {
       console.error('Erro ao validar campos:', error);
@@ -492,15 +512,20 @@ const NewPatientForm = () => {
     }
   };
 
+  // Handler para quando um lembrete é criado
+  const handleReminderCreated = (reminder: Reminder) => {
+    setPatientReminders(prev => [...prev, reminder]);
+  };
+
   return (
     <AdminLayout>
       <Helmet>
-        <title>Novo Formulário - Dra. Aymée Frauzino</title>
+        <title>{id ? 'Editar Formulário' : 'Novo Formulário'} - Dra. Aymée Frauzino</title>
       </Helmet>
       
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Novo Formulário Clínico</h1>
+          <h1 className="text-2xl font-bold">{id ? 'Editar Formulário' : 'Novo Formulário'} Clínico</h1>
           <p className="text-gray-500">Preencha os dados do paciente e histórico de saúde</p>
         </div>
         
@@ -512,10 +537,11 @@ const NewPatientForm = () => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit((data) => onSubmit(data, false))}>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="w-full grid grid-cols-3 mb-8">
+                <TabsList className="w-full grid grid-cols-2 md:grid-cols-4 mb-8">
                   <TabsTrigger value="dados-pessoais">Dados Pessoais</TabsTrigger>
                   <TabsTrigger value="historico-saude">Histórico de Saúde</TabsTrigger>
                   <TabsTrigger value="plano-tratamento">Plano de Tratamento</TabsTrigger>
+                  <TabsTrigger value="agendamento-retorno">Agendamento de Retorno</TabsTrigger>
                 </TabsList>
                 
                 {/* Aba de Dados Pessoais */}
@@ -857,11 +883,44 @@ const NewPatientForm = () => {
                     />
                   </div>
                   
-                  <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
+                  <div className="flex justify-between">
                     <Button 
                       type="button" 
                       variant="outline"
                       onClick={() => setActiveTab('historico-saude')}
+                    >
+                      Voltar
+                    </Button>
+                    
+                    <Button 
+                      type="button" 
+                      onClick={validateTabAndContinue}
+                    >
+                      Próximo
+                    </Button>
+                  </div>
+                </TabsContent>
+                
+                {/* Aba de Agendamento de Retorno */}
+                <TabsContent value="agendamento-retorno" className="space-y-6 pt-4">
+                  {id ? (
+                    <ReturnScheduler 
+                      patientId={id} 
+                      patientName={form.getValues('nome')}
+                      existingReminders={patientReminders}
+                      onReminderCreated={handleReminderCreated}
+                    />
+                  ) : (
+                    <div className="bg-yellow-50 p-4 rounded-md text-yellow-800">
+                      <p>Para agendar um retorno, primeiro salve o formulário do paciente.</p>
+                    </div>
+                  )}
+                  
+                  <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => setActiveTab('plano-tratamento')}
                     >
                       Voltar
                     </Button>

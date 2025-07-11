@@ -94,6 +94,34 @@ export function generateId(): string {
   return Math.random().toString(36).substring(2, 11);
 }
 
+// Formatar tempo relativo (e.g., "há 2 horas", "em 3 dias")
+export function formatRelativeTime(date: Date | string): string {
+  const now = new Date();
+  const targetDate = typeof date === 'string' ? new Date(date) : date;
+  
+  const diffMs = targetDate.getTime() - now.getTime();
+  const diffSec = Math.round(diffMs / 1000);
+  const diffMin = Math.round(diffSec / 60);
+  const diffHour = Math.round(diffMin / 60);
+  const diffDay = Math.round(diffHour / 24);
+  
+  if (diffMs < 0) {
+    // Passado
+    if (diffSec > -60) return 'agora mesmo';
+    if (diffMin > -60) return `há ${Math.abs(diffMin)} ${Math.abs(diffMin) === 1 ? 'minuto' : 'minutos'}`;
+    if (diffHour > -24) return `há ${Math.abs(diffHour)} ${Math.abs(diffHour) === 1 ? 'hora' : 'horas'}`;
+    if (diffDay > -30) return `há ${Math.abs(diffDay)} ${Math.abs(diffDay) === 1 ? 'dia' : 'dias'}`;
+    return formatDate(targetDate.toISOString());
+  } else {
+    // Futuro
+    if (diffSec < 60) return 'em instantes';
+    if (diffMin < 60) return `em ${diffMin} ${diffMin === 1 ? 'minuto' : 'minutos'}`;
+    if (diffHour < 24) return `em ${diffHour} ${diffHour === 1 ? 'hora' : 'horas'}`;
+    if (diffDay < 30) return `em ${diffDay} ${diffDay === 1 ? 'dia' : 'dias'}`;
+    return formatDate(targetDate.toISOString());
+  }
+}
+
 /**
  * Função para copiar texto para a área de transferência com fallback
  * Resolve problemas de permissão da Clipboard API

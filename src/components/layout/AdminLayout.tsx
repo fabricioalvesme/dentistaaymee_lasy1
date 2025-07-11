@@ -8,12 +8,14 @@ import {
   Menu, 
   X, 
   LogOut,
-  Home
+  Home,
+  Bell
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+import { NotificationPopover } from '@/components/notifications/NotificationPopover';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -40,6 +42,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       title: 'Agenda',
       href: '/admin/agenda',
       icon: <CalendarDays className="h-5 w-5" />
+    },
+    {
+      title: 'Notificações',
+      href: '/admin/notifications',
+      icon: <Bell className="h-5 w-5" />
     },
     {
       title: 'SEO e Conteúdo',
@@ -136,18 +143,22 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </span>
           </Button>
           
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-1"
-          >
-            {isSidebarOpen ? (
-              <X className="h-6 w-6" />
-            ) : (
-              <Menu className="h-6 w-6" />
-            )}
-          </Button>
+          <div className="flex items-center gap-1">
+            <NotificationPopover />
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-1"
+            >
+              {isSidebarOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -219,6 +230,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main content */}
       <main className="flex-1 overflow-auto h-full">
+        {/* Header para desktop com notificações */}
+        <div className="hidden md:flex items-center justify-end p-4 bg-white border-b border-gray-200">
+          <NotificationPopover />
+        </div>
+        
         <div className="md:p-8 p-4 mt-16 md:mt-0">
           {children}
         </div>
