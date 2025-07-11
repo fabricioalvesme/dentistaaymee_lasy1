@@ -13,19 +13,11 @@ import {
   Calendar, 
   FileText, 
   User, 
-  ChevronDown,
   Loader2,
   Check,
   X,
-  Download,
-  Trash2
+  Download
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -35,17 +27,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -53,13 +34,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatDate, getAge, copyToClipboard } from '@/lib/utils';
+import { copyToClipboard } from '@/lib/utils';
 import { PatientFormPDFViewer } from '@/components/exports/PatientFormPDF';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { PatientFormPDF } from '@/components/exports/PatientFormPDF';
 import { UpcomingRemindersCard } from '@/components/dashboard/UpcomingRemindersCard';
+import { PatientDetailsContent } from '@/components/patient/PatientDetailsContent';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -81,7 +62,6 @@ const Dashboard = () => {
     assinado: 0
   });
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [loadingExport, setLoadingExport] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -186,18 +166,13 @@ const Dashboard = () => {
     try {
       setIsDeleting(true);
       
-      // Deletar registros dependentes primeiro
       await supabase.from('health_histories').delete().eq('patient_id', patientId);
       await supabase.from('treatments').delete().eq('patient_id', patientId);
       await supabase.from('reminders').delete().eq('patient_id', patientId);
       await supabase.from('appointments').delete().eq('patient_id', patientId);
 
-      // Deletar o paciente
       const { error } = await supabase.from('patients').delete().eq('id', patientId);
-
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       toast.success('Paciente e todos os seus dados foram excluídos com sucesso.');
       setPatients(prev => prev.filter(p => p.id !== patientId));
@@ -234,74 +209,26 @@ const Dashboard = () => {
             <h1 className="text-2xl font-bold">Dashboard</h1>
             <p className="text-gray-500">Gerencie formulários, agenda e configurações</p>
           </div>
-          
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button onClick={() => navigate('/admin/forms/new')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Formulário
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/admin/agenda')}>
-              <Calendar className="h-4 w-4 mr-2" />
-              Agenda
-            </Button>
+            <Button onClick={() => navigate('/admin/forms/new')}><Plus className="h-4 w-4 mr-2" />Novo Formulário</Button>
+            <Button variant="outline" onClick={() => navigate('/admin/agenda')}><Calendar className="h-4 w-4 mr-2" />Agenda</Button>
           </div>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total de Pacientes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center">
-                  <User className="h-5 w-5 text-primary mr-2" />
-                  <span className="text-2xl font-bold">{counts.total}</span>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Rascunhos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center">
-                  <FileText className="h-5 w-5 text-yellow-500 mr-2" />
-                  <span className="text-2xl font-bold">{counts.rascunho}</span>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Assinados</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center">
-                  <FileText className="h-5 w-5 text-green-500 mr-2" />
-                  <span className="text-2xl font-bold">{counts.assinado}</span>
-                </div>
-              </CardContent>
-            </Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total de Pacientes</CardTitle></CardHeader><CardContent><div className="flex items-center"><User className="h-5 w-5 text-primary mr-2" /><span className="text-2xl font-bold">{counts.total}</span></div></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Rascunhos</CardTitle></CardHeader><CardContent><div className="flex items-center"><FileText className="h-5 w-5 text-yellow-500 mr-2" /><span className="text-2xl font-bold">{counts.rascunho}</span></div></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Assinados</CardTitle></CardHeader><CardContent><div className="flex items-center"><FileText className="h-5 w-5 text-green-500 mr-2" /><span className="text-2xl font-bold">{counts.assinado}</span></div></CardContent></Card>
           </div>
-          <div className="lg:col-span-2">
-            <UpcomingRemindersCard />
-          </div>
+          <div className="lg:col-span-2"><UpcomingRemindersCard /></div>
         </div>
         
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Buscar por nome do paciente ou responsável..."
-              className="pl-10 pr-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            {searchTerm && (
-              <button className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => setSearchTerm('')}>
-                <X className="h-4 w-4" />
-              </button>
-            )}
+            <Input placeholder="Buscar por nome do paciente ou responsável..." className="pl-10 pr-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            {searchTerm && (<button className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => setSearchTerm('')}><X className="h-4 w-4" /></button>)}
           </div>
           <div className="w-full md:w-48">
             <Select value={periodFilter} onValueChange={setPeriodFilter}>
@@ -317,48 +244,27 @@ const Dashboard = () => {
           </div>
         </div>
         
-        {error && (
-          <div className="bg-red-50 text-red-700 p-4 rounded-md flex items-center gap-2">
-            <span>⚠️</span><p>{error}</p>
-            <Button variant="ghost" size="sm" className="ml-auto" onClick={fetchPatients}>Tentar novamente</Button>
-          </div>
-        )}
+        {error && (<div className="bg-red-50 text-red-700 p-4 rounded-md flex items-center gap-2"><span>⚠️</span><p>{error}</p><Button variant="ghost" size="sm" className="ml-auto" onClick={fetchPatients}>Tentar novamente</Button></div>)}
         
         {loading ? (
           <div className="flex justify-center items-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : filteredPatients.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredPatients.map((patient) => (
-              <PatientFormCard
-                key={patient.id}
-                patient={patient}
-                onShare={() => handleShare(patient)}
-                onViewDetails={() => handleViewDetails(patient)}
-                onExport={() => handleExport(patient)}
-                onDelete={() => handleDelete(patient.id)}
-                isDeleting={isDeleting}
-              />
+              <PatientFormCard key={patient.id} patient={patient} onShare={() => handleShare(patient)} onViewDetails={() => handleViewDetails(patient)} onExport={() => handleExport(patient)} onDelete={() => handleDelete(patient.id)} isDeleting={isDeleting} />
             ))}
           </div>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-500">Nenhum paciente encontrado</p>
-            {searchTerm && <Button variant="link" onClick={() => setSearchTerm('')} className="mt-2">Limpar busca</Button>}
-          </div>
+          <div className="text-center py-12"><p className="text-gray-500">Nenhum paciente encontrado</p>{searchTerm && <Button variant="link" onClick={() => setSearchTerm('')} className="mt-2">Limpar busca</Button>}</div>
         )}
       </div>
 
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Compartilhar Formulário</DialogTitle>
-            <DialogDescription>Compartilhe este link com o paciente para que ele possa assinar o formulário.</DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Compartilhar Formulário</DialogTitle><DialogDescription>Compartilhe este link com o paciente para que ele possa assinar o formulário.</DialogDescription></DialogHeader>
           <div className="flex items-center space-x-2 mt-4">
             <Input value={shareLink} readOnly onClick={(e) => (e.target as HTMLInputElement).select()} />
-            <Button onClick={() => copyToClipboardHandler(shareLink)} variant="secondary" disabled={isCopying}>
-              {isCopying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            </Button>
+            <Button onClick={() => copyToClipboardHandler(shareLink)} variant="secondary" disabled={isCopying}>{isCopying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}</Button>
           </div>
           <p className="text-sm text-gray-500 mt-2">Formulário para: <span className="font-medium">{selectedPatient?.nome}</span></p>
           <DialogFooter className="mt-4"><Button onClick={() => setShowShareDialog(false)}>Fechar</Button></DialogFooter>
@@ -371,34 +277,14 @@ const Dashboard = () => {
           {loadingDetails ? (
             <div className="flex justify-center items-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : selectedPatient ? (
-            <div className="space-y-6">
-              <Tabs defaultValue="info">
-                <TabsList className="grid grid-cols-3 mb-4">
-                  <TabsTrigger value="info">Informações</TabsTrigger>
-                  <TabsTrigger value="health">Histórico</TabsTrigger>
-                  <TabsTrigger value="treatment">Tratamento</TabsTrigger>
-                </TabsList>
-                <TabsContent value="info">
-                  {/* Conteúdo da aba de informações */}
-                </TabsContent>
-                <TabsContent value="health">
-                  {/* Conteúdo da aba de histórico */}
-                </TabsContent>
-                <TabsContent value="treatment">
-                  {/* Conteúdo da aba de tratamento */}
-                </TabsContent>
-              </Tabs>
-              <div className="flex justify-between pt-4 border-t">
-                <Button variant="outline" onClick={() => { setShowDetailsDialog(false); navigate(`/admin/forms/edit/${selectedPatient.id}`); }}>Editar</Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild><Button variant="outline">Ações <ChevronDown className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => { setShowDetailsDialog(false); handleShare(selectedPatient); }}>Compartilhar</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setShowDetailsDialog(false); handleExport(selectedPatient); }}>Exportar PDF</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
+            <PatientDetailsContent 
+              patient={selectedPatient}
+              healthHistory={patientDetails.healthHistory}
+              treatment={patientDetails.treatment}
+              onShare={() => { setShowDetailsDialog(false); handleShare(selectedPatient); }}
+              onExport={() => { setShowDetailsDialog(false); handleExport(selectedPatient); }}
+              onClose={() => setShowDetailsDialog(false)}
+            />
           ) : (
             <div className="py-6 text-center"><p className="text-gray-500">Paciente não encontrado.</p></div>
           )}
@@ -407,20 +293,15 @@ const Dashboard = () => {
       
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
         <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>Exportar Formulário</DialogTitle>
-            <DialogDescription>Visualize e exporte o formulário do paciente como PDF</DialogDescription>
-          </DialogHeader>
-          {loadingExport || !selectedPatient ? (
+          <DialogHeader><DialogTitle>Exportar Formulário</DialogTitle><DialogDescription>Visualize e exporte o formulário do paciente como PDF</DialogDescription></DialogHeader>
+          {loadingDetails || !selectedPatient ? (
             <div className="flex justify-center items-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
             <>
               <div className="my-4"><PatientFormPDFViewer patient={selectedPatient} healthHistory={patientDetails.healthHistory} treatment={patientDetails.treatment} logoUrl={settings?.logo_url} /></div>
               <DialogFooter>
                 <PDFDownloadLink document={<PatientFormPDF patient={selectedPatient} healthHistory={patientDetails.healthHistory} treatment={patientDetails.treatment} logoUrl={settings?.logo_url} />} fileName={`formulario_${selectedPatient.nome.replace(/\s+/g, '_').toLowerCase()}.pdf`}>
-                  {({ loading: pdfLoading }) => (
-                    <Button disabled={pdfLoading}><Download className="h-4 w-4 mr-2" />{pdfLoading ? 'Preparando...' : 'Baixar PDF'}</Button>
-                  )}
+                  {({ loading: pdfLoading }) => (<Button disabled={pdfLoading}><Download className="h-4 w-4 mr-2" />{pdfLoading ? 'Preparando...' : 'Baixar PDF'}</Button>)}
                 </PDFDownloadLink>
               </DialogFooter>
             </>
