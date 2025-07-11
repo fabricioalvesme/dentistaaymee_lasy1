@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PatientSelect } from "@/components/forms/PatientSelect";
 
 const appointmentSchema = z.object({
   titulo: z.string().min(3, 'Título deve ter pelo menos 3 caracteres'),
@@ -93,6 +94,23 @@ export function EventForm({ defaultValues, onSubmit, isEditing, onCancel, isSavi
               <FormLabel>Título*</FormLabel>
               <FormControl>
                 <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="patient_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Paciente (Opcional)</FormLabel>
+              <FormControl>
+                <PatientSelect
+                  value={field.value}
+                  onChange={field.onChange}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
