@@ -13,13 +13,12 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   const navigate = useNavigate();
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Verificação de autenticação
+    // Esta função será executada apenas uma vez após determinar o estado de autenticação
     const checkAuth = async () => {
       try {
-        // Se ainda está carregando, aguarde
+        // Se ainda está carregando, retorne e aguarde o próximo ciclo
         if (loading) return;
         
         console.log("ProtectedRoute - Estado de autenticação:", { 
@@ -41,15 +40,11 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
         
         if (requireAdmin && !isAdmin) {
           console.log("Usuário não é admin, redirecionando para home");
-          // Se precisa ser admin mas não é
           navigate('/', { replace: true });
           return;
         }
-        
-        // Se chegou aqui, o usuário está autenticado e tem permissão
-        setIsAuthenticated(true);
       } finally {
-        // Finaliza a verificação
+        // Finaliza a verificação em qualquer caso
         setIsChecking(false);
       }
     };
@@ -70,5 +65,5 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   }
 
   // Renderiza os filhos apenas se estiver autenticado
-  return isAuthenticated ? <>{children}</> : null;
+  return <>{children}</>;
 }

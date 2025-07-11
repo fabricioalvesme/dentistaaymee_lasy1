@@ -52,18 +52,23 @@ const AppointmentCalendar = () => {
   // Abrir diálogo para adicionar evento
   const handleAddEvent = () => {
     setSelectedEvent(null);
+    
+    // Valores padrão com horário útil (8h às 18h)
     const defaultValues: AppointmentFormValues = {
       titulo: '',
       descricao: '',
       data: selectedDate,
       hora_inicio: '09:00',
       hora_fim: '10:00',
+      patient_id: undefined
     };
+    
     setShowDialog(true);
   };
 
   // Abrir diálogo para ver/editar evento
   const handleEventClick = (event: Appointment) => {
+    console.log("Evento clicado:", event);
     setSelectedEvent(event);
     setShowEventDialog(true);
   };
@@ -92,10 +97,20 @@ const AppointmentCalendar = () => {
   const handleDeleteEvent = async () => {
     if (!selectedEvent) return;
     
-    const success = await deleteAppointment(selectedEvent);
-    if (success) {
-      setShowEventDialog(false);
+    try {
+      const success = await deleteAppointment(selectedEvent);
+      if (success) {
+        setShowEventDialog(false);
+      }
+    } catch (error) {
+      console.error("Erro ao excluir evento:", error);
+      toast.error("Erro ao excluir evento");
     }
+  };
+
+  // Fechar diálogo de eventos
+  const handleCloseEventDialog = () => {
+    setShowDialog(false);
   };
 
   // Enviar formulário
@@ -361,6 +376,7 @@ const AppointmentCalendar = () => {
             }}
             onSubmit={onSubmit}
             isEditing={!!selectedEvent}
+            onCancel={() => setShowDialog(false)}
           />
         </DialogContent>
       </Dialog>

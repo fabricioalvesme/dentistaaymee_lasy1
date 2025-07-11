@@ -15,6 +15,7 @@ const defaultSettings: Partial<Settings> = {
   accent_color: '#F3F4F6',
   meta_title: 'Dra. Aymée Frauzino – Odontopediatra',
   meta_description: 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.',
+  convenios_text: 'Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.',
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -22,11 +23,17 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Partial<Settings> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
+  // Carregar configurações do Supabase - executado apenas uma vez
   useEffect(() => {
     async function loadSettings() {
+      if (dataLoaded) return; // Evita carregamentos múltiplos
+      
       try {
+        console.log("ThemeContext - Carregando configurações iniciais");
         setLoading(true);
+        
         const { data, error } = await supabase
           .from('settings')
           .select('*')
@@ -34,13 +41,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           .single();
 
         if (error && error.code !== 'PGRST116') {
-          console.error('Erro ao carregar configurações:', error);
+          console.error('Erro ao carregar configurações (ThemeContext):', error);
           setSettings(defaultSettings);
         } else {
+          console.log("ThemeContext - Configurações carregadas:", data);
           setSettings(data || defaultSettings);
         }
+        
+        setDataLoaded(true);
       } catch (error) {
-        console.error('Erro ao carregar configurações:', error);
+        console.error('Erro ao carregar configurações (ThemeContext):', error);
         setSettings(defaultSettings);
       } finally {
         setLoading(false);
@@ -49,28 +59,33 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     loadSettings();
     
-    // Inscrever para mudanças em tempo real nas configurações
-    const subscription = supabase
+    // Configurar listener para mudanças em tempo real nas configurações
+    const channel = supabase
       .channel('settings-changes')
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
         table: 'settings' 
       }, payload => {
-        console.log('Mudança detectada nas configurações:', payload);
+        console.log('ThemeContext - Mudança detectada nas configurações:', payload);
         if (payload.new) {
           setSettings(payload.new as Partial<Settings>);
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log("ThemeContext - Status do canal de realtime:", status);
+      });
       
     return () => {
-      supabase.removeChannel(subscription);
+      console.log("ThemeContext - Removendo listener de realtime");
+      supabase.removeChannel(channel);
     };
-  }, []);
+  }, []); // Dependência vazia para executar apenas uma vez na montagem
 
+  // Aplicar as cores do tema quando as configurações mudarem
   useEffect(() => {
     if (settings) {
+      console.log("ThemeContext - Aplicando variáveis CSS com as cores");
       // Aplicar variáveis CSS com as cores
       document.documentElement.style.setProperty('--color-primary', settings.primary_color || defaultSettings.primary_color!);
       document.documentElement.style.setProperty('--color-secondary', settings.secondary_color || defaultSettings.secondary_color!);
@@ -78,9 +93,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [settings]);
 
+  // Função para atualizar as configurações
   const updateSettings = async (newSettings: Partial<Settings>) => {
     try {
       setLoading(true);
+      console.log("ThemeContext - Atualizando configurações:", newSettings);
       
       // Verifica se já existe uma entrada
       const { data: existingSettings } = await supabase
@@ -92,12 +109,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       
       if (existingSettings && existingSettings.length > 0) {
         // Atualiza a entrada existente
+        console.log("ThemeContext - Atualizando configurações existentes, ID:", existingSettings[0].id);
         result = await supabase
           .from('settings')
           .update(newSettings)
           .eq('id', existingSettings[0].id);
       } else {
         // Cria uma nova entrada
+        console.log("ThemeContext - Criando novas configurações");
         result = await supabase
           .from('settings')
           .insert([{ ...defaultSettings, ...newSettings }]);
@@ -107,21 +126,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         throw result.error;
       }
 
-      // Recarrega as configurações
-      const { data, error } = await supabase
-        .from('settings')
-        .select('*')
-        .limit(1)
-        .single();
-        
-      if (error) {
-        throw error;
-      }
-
-      setSettings(data || defaultSettings);
+      // As configurações serão atualizadas pelo listener em tempo real
+      console.log("ThemeContext - Configurações atualizadas com sucesso");
       toast.success('Configurações atualizadas com sucesso!');
     } catch (error) {
-      console.error('Erro ao atualizar configurações:', error);
+      console.error('Erro ao atualizar configurações (ThemeContext):', error);
       toast.error('Erro ao atualizar configurações. Tente novamente.');
       throw error;
     } finally {

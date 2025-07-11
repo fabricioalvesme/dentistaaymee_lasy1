@@ -25,31 +25,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function getInitialSession() {
       try {
-        setLoading(true);
+        console.log("Inicializando sessão do AuthContext");
         
+        // Buscar sessão inicial
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Erro ao carregar sessão:', error);
+          console.error('Erro ao carregar sessão inicial:', error);
+          setLoading(false);
           return;
         }
         
+        // Definir estado com base na sessão recuperada
         setSession(data.session);
         setUser(data.session?.user || null);
 
-        // Verifica se o usuário é admin
+        // Verificar se o usuário é admin (se tiver sessão)
         if (data.session?.user) {
-          const { data: userData } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', data.session.user.id)
-            .single();
-          
-          setIsAdmin(userData?.role === 'admin' || true); // Considerando qualquer usuário como admin por enquanto
-          console.log("Sessão inicial carregada:", { 
-            userId: data.session.user.id,
-            isAdmin: userData?.role === 'admin' || true
-          });
+          try {
+            const { data: userData } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', data.session.user.id)
+              .single();
+            
+            // Considerando qualquer usuário como admin por enquanto
+            const userIsAdmin = userData?.role === 'admin' || true;
+            setIsAdmin(userIsAdmin);
+            
+            console.log("Sessão inicial carregada:", { 
+              userId: data.session.user.id,
+              isAdmin: userIsAdmin
+            });
+          } catch (profileError) {
+            console.error('Erro ao verificar perfil:', profileError);
+          }
         }
       } catch (error) {
         console.error('Erro ao inicializar sessão:', error);
@@ -58,29 +68,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Obter sessão inicial
     getInitialSession();
 
+    // Configurar listener para mudanças no estado de autenticação
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.id);
+      async (event, newSession) => {
+        console.log("Auth state changed:", event, newSession?.user?.id);
         
-        setSession(session);
-        setUser(session?.user || null);
+        setSession(newSession);
+        setUser(newSession?.user || null);
 
-        // Verifica se o usuário é admin
-        if (session?.user) {
+        // Verificar se o usuário é admin (se tiver sessão)
+        if (newSession?.user) {
           try {
             const { data: userData, error } = await supabase
               .from('profiles')
               .select('role')
-              .eq('id', session.user.id)
+              .eq('id', newSession.user.id)
               .single();
             
             if (error) {
               console.error('Erro ao verificar perfil:', error);
             }
             
-            setIsAdmin(userData?.role === 'admin' || true); // Considerando qualquer usuário como admin por enquanto
+            // Considerando qualquer usuário como admin por enquanto
+            setIsAdmin(userData?.role === 'admin' || true);
           } catch (error) {
             console.error('Erro ao verificar perfil:', error);
           }
@@ -88,11 +101,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAdmin(false);
         }
         
+        // Garantir que loading seja false após qualquer mudança de estado
         setLoading(false);
       }
     );
 
+    // Limpar listener ao desmontar
     return () => {
+      console.log("Removendo listener de auth");
       authListener.subscription.unsubscribe();
     };
   }, []);
@@ -110,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) {
         console.error('Erro no login:', error);
         toast.error(error.message || 'Falha ao fazer login');
+        setLoading(false);
         return;
       }
       
@@ -126,15 +143,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(userData?.role === 'admin' || true); // Considerando qualquer usuário como admin por enquanto
       }
       
-      setSession(data.session);
-      setUser(data.user);
-      
+      // Os estados serão atualizados pelo listener onAuthStateChange
       toast.success('Login realizado com sucesso!');
       navigate('/admin/dashboard');
     } catch (error: any) {
       console.error('Erro ao fazer login:', error);
       toast.error(error.message || 'Falha ao fazer login');
-    } finally {
       setLoading(false);
     }
   };
@@ -148,21 +162,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (error) {
         console.error('Erro ao fazer logout no Supabase:', error);
+        toast.error('Falha ao fazer logout');
+        setLoading(false);
         throw error;
       }
       
-      // Limpar estados após logout bem-sucedido
-      setUser(null);
-      setSession(null);
-      setIsAdmin(false);
-      
+      // Estados serão atualizados pelo listener onAuthStateChange
       console.log("Logout bem-sucedido");
-      return;
+      navigate('/');
+      toast.success('Logout realizado com sucesso');
     } catch (error: any) {
       console.error('Erro ao fazer logout:', error);
       toast.error('Falha ao fazer logout');
-      throw error;
-    } finally {
       setLoading(false);
     }
   };

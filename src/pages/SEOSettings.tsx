@@ -35,31 +35,37 @@ const seoSettingsSchema = z.object({
 
 type SEOSettingsValues = z.infer<typeof seoSettingsSchema>;
 
+const defaultValues: SEOSettingsValues = {
+  meta_title: 'Dra. Aymée Frauzino – Odontopediatra',
+  meta_description: 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.',
+  about_text: '',
+  services_text: '',
+  convenios_text: 'Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.',
+  logo_url: '',
+  primary_color: '#3B82F6',
+  secondary_color: '#10B981',
+  accent_color: '#F3F4F6',
+};
+
 const SEOSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('seo');
+  const [dataLoaded, setDataLoaded] = useState(false);
   
   const form = useForm<SEOSettingsValues>({
     resolver: zodResolver(seoSettingsSchema),
-    defaultValues: {
-      meta_title: 'Dra. Aymée Frauzino – Odontopediatra',
-      meta_description: 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.',
-      about_text: '',
-      services_text: '',
-      convenios_text: 'Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.',
-      logo_url: '',
-      primary_color: '#3B82F6',
-      secondary_color: '#10B981',
-      accent_color: '#F3F4F6',
-    },
+    defaultValues,
   });
 
-  // Carregar valores iniciais
+  // Carregar valores iniciais - executa apenas uma vez
   useEffect(() => {
     async function loadSettings() {
+      if (dataLoaded) return; // Evita múltiplos carregamentos
+      
       try {
+        console.log("Carregando configurações de SEO...");
         setLoading(true);
         
         const { data, error } = await supabase
@@ -75,22 +81,27 @@ const SEOSettings = () => {
         }
         
         if (data) {
+          console.log("Configurações carregadas com sucesso:", data);
           setSettingsId(data.id);
           
+          // Resetar o form com os valores carregados
           form.reset({
-            meta_title: data.meta_title || 'Dra. Aymée Frauzino – Odontopediatra',
-            meta_description: data.meta_description || 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.',
-            about_text: data.about_text || '',
-            services_text: data.services_text || '',
-            convenios_text: data.convenios_text || 'Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.',
-            logo_url: data.logo_url || '',
-            primary_color: data.primary_color || '#3B82F6',
-            secondary_color: data.secondary_color || '#10B981',
-            accent_color: data.accent_color || '#F3F4F6',
+            meta_title: data.meta_title || defaultValues.meta_title,
+            meta_description: data.meta_description || defaultValues.meta_description,
+            about_text: data.about_text || defaultValues.about_text,
+            services_text: data.services_text || defaultValues.services_text,
+            convenios_text: data.convenios_text || defaultValues.convenios_text,
+            logo_url: data.logo_url || defaultValues.logo_url,
+            primary_color: data.primary_color || defaultValues.primary_color,
+            secondary_color: data.secondary_color || defaultValues.secondary_color,
+            accent_color: data.accent_color || defaultValues.accent_color,
           });
-          
-          console.log('Configurações carregadas com sucesso:', data);
+        } else {
+          console.log("Nenhuma configuração encontrada, usando valores padrão");
+          form.reset(defaultValues);
         }
+        
+        setDataLoaded(true);
       } catch (error) {
         console.error('Erro ao carregar configurações:', error);
         toast.error('Erro ao carregar configurações');
@@ -100,11 +111,12 @@ const SEOSettings = () => {
     }
 
     loadSettings();
-  }, [form]);
+  }, []); // Dependência vazia para executar apenas uma vez na montagem
 
   const onSubmit = async (data: SEOSettingsValues) => {
     try {
       setSaving(true);
+      console.log("Salvando configurações:", data);
       
       // Aplicar variáveis CSS com as cores
       document.documentElement.style.setProperty('--color-primary', data.primary_color);
@@ -113,31 +125,41 @@ const SEOSettings = () => {
       
       let result;
       
+      // Usando upsert para simplificar - insere se não existir, atualiza se existir
       if (settingsId) {
         // Atualizar configurações existentes
+        console.log("Atualizando configurações existentes, ID:", settingsId);
         result = await supabase
           .from('settings')
           .update(data)
           .eq('id', settingsId);
+          
+        if (result.error) {
+          throw result.error;
+        }
+        
+        console.log("Configurações atualizadas com sucesso");
       } else {
         // Criar novas configurações
+        console.log("Criando novas configurações");
         result = await supabase
           .from('settings')
           .insert([data])
           .select();
           
+        if (result.error) {
+          throw result.error;
+        }
+        
         if (result.data && result.data.length > 0) {
           setSettingsId(result.data[0].id);
+          console.log("Novas configurações criadas, ID:", result.data[0].id);
         }
-      }
-      
-      if (result.error) {
-        throw result.error;
       }
       
       toast.success('Configurações salvas com sucesso!');
       
-      // Recarregar dados para garantir que tudo foi salvo corretamente
+      // Recarregar dados para garantir sincronização
       const { data: reloadedData, error: reloadError } = await supabase
         .from('settings')
         .select('*')
@@ -145,6 +167,9 @@ const SEOSettings = () => {
         .single();
       
       if (!reloadError && reloadedData) {
+        console.log("Configurações recarregadas após salvamento:", reloadedData);
+        
+        // Resetar o form com os valores atualizados do servidor
         form.reset({
           meta_title: reloadedData.meta_title,
           meta_description: reloadedData.meta_description,
@@ -157,7 +182,6 @@ const SEOSettings = () => {
           accent_color: reloadedData.accent_color,
         });
       }
-      
     } catch (error) {
       console.error('Erro ao salvar configurações:', error);
       toast.error('Erro ao salvar configurações. Tente novamente.');

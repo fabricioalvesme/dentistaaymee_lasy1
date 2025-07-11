@@ -26,22 +26,28 @@ export function Header() {
   // Função de logout segura
   const handleSignOut = async () => {
     try {
+      console.log("Header - Tentando fazer logout");
       await signOut();
-      toast.success('Logout realizado com sucesso!');
       setIsMenuOpen(false);
-      navigate('/');
     } catch (error) {
-      console.error('Erro ao fazer logout:', error);
+      console.error('Erro ao fazer logout (Header):', error);
       toast.error('Erro ao fazer logout. Tente novamente.');
     }
   };
 
   // Função para navegar para o dashboard e fechar o menu
   const navigateToDashboard = () => {
-    console.log("Navegando para o dashboard");
+    console.log("Header - Navegando para o dashboard");
     setIsMenuOpen(false);
     navigate('/admin/dashboard');
   };
+
+  // Links de navegação
+  const navLinks = [
+    { href: "/#sobre", label: "Sobre" },
+    { href: "/#servicos", label: "Serviços" },
+    { href: "/#contato", label: "Contato" },
+  ];
 
   return (
     <header
@@ -69,15 +75,15 @@ export function Header() {
 
           {/* Links de navegação - Desktop */}
           <nav className="hidden md:flex items-center space-x-8">
-            <a href="/#sobre" className="text-gray-700 hover:text-primary font-medium">
-              Sobre
-            </a>
-            <a href="/#servicos" className="text-gray-700 hover:text-primary font-medium">
-              Serviços
-            </a>
-            <a href="/#contato" className="text-gray-700 hover:text-primary font-medium">
-              Contato
-            </a>
+            {navLinks.map((link, index) => (
+              <a 
+                key={index}
+                href={link.href}
+                className="text-gray-700 hover:text-primary font-medium"
+              >
+                {link.label}
+              </a>
+            ))}
             
             {user ? (
               <div className="flex items-center space-x-4">
@@ -128,27 +134,16 @@ export function Header() {
         {isMenuOpen && (
           <div className="md:hidden py-4 mt-4 bg-white rounded-lg shadow-md">
             <nav className="flex flex-col space-y-4 px-4">
-              <a 
-                href="/#sobre" 
-                className="text-gray-800 hover:text-primary font-medium py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Sobre
-              </a>
-              <a 
-                href="/#servicos" 
-                className="text-gray-800 hover:text-primary font-medium py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Serviços
-              </a>
-              <a 
-                href="/#contato" 
-                className="text-gray-800 hover:text-primary font-medium py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Contato
-              </a>
+              {navLinks.map((link, index) => (
+                <a 
+                  key={index}
+                  href={link.href}
+                  className="text-gray-800 hover:text-primary font-medium py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {link.label}
+                </a>
+              ))}
               
               <div className="border-t border-gray-200 pt-2 mt-2"></div>
               

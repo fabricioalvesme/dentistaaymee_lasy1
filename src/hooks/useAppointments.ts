@@ -10,6 +10,7 @@ export function useAppointments() {
 
   // Carregar consultas
   useEffect(() => {
+    console.log("Inicializando useAppointments hook");
     loadAppointments();
   }, []);
 
@@ -17,13 +18,17 @@ export function useAppointments() {
   const loadAppointments = async () => {
     try {
       setLoading(true);
+      console.log("Carregando lista de compromissos...");
       
       const { data, error } = await supabase
         .from('appointments')
         .select('*')
         .order('data_hora_inicio', { ascending: true });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao carregar consultas:', error);
+        throw error;
+      }
       
       console.log("Compromissos carregados:", data?.length || 0);
       setAppointments(data || []);
@@ -129,6 +134,7 @@ export function useAppointments() {
         toast.success('Evento criado com sucesso');
       }
       
+      // Recarregar a lista de compromissos após salvar
       await loadAppointments();
       return true;
     } catch (error) {
@@ -144,15 +150,22 @@ export function useAppointments() {
   const deleteAppointment = async (event: Appointment) => {
     try {
       setDeleting(true);
+      console.log("Excluindo evento:", event.id);
       
       const { error } = await supabase
         .from('appointments')
         .delete()
         .eq('id', event.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Erro ao excluir evento:", error);
+        throw error;
+      }
       
+      console.log("Evento excluído com sucesso");
       toast.success('Evento excluído com sucesso');
+      
+      // Recarregar a lista de compromissos após excluir
       await loadAppointments();
       return true;
     } catch (error) {

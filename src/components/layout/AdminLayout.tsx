@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   CalendarDays, 
@@ -13,6 +13,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ interface AdminLayoutProps {
 export function AdminLayout({ children }: AdminLayoutProps) {
   const { signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navItems = [
@@ -48,6 +50,23 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const handleSignOut = async () => {
+    try {
+      console.log("AdminLayout - Tentando fazer logout");
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Erro ao fazer logout (AdminLayout):', error);
+      toast.error('Erro ao fazer logout. Tente novamente.');
+    }
+  };
+
+  const handleNavigation = (path: string) => {
+    console.log("AdminLayout - Navegando para:", path);
+    setIsSidebarOpen(false);
+    navigate(path);
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar para desktop */}
@@ -64,18 +83,19 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         
         <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => (
-            <Link
+            <Button
               key={item.href}
-              to={item.href}
-              className={`flex items-center px-4 py-3 rounded-md transition-colors ${
+              variant={isActive(item.href) ? "secondary" : "ghost"}
+              className={`w-full justify-start ${
                 isActive(item.href)
                   ? 'bg-primary/10 text-primary font-medium'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
+              onClick={() => handleNavigation(item.href)}
             >
               {item.icon}
               <span className="ml-3">{item.title}</span>
-            </Link>
+            </Button>
           ))}
         </nav>
         
@@ -95,7 +115,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <Button 
             variant="ghost" 
             className="w-full justify-start text-gray-600"
-            onClick={() => signOut()}
+            onClick={handleSignOut}
           >
             <LogOut className="h-4 w-4 mr-2" />
             Sair
@@ -106,22 +126,28 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Mobile header & sidebar */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-200">
         <div className="flex items-center justify-between p-4">
-          <Link to="/" className="flex items-center">
+          <Button
+            variant="ghost"
+            className="p-0 hover:bg-transparent"
+            onClick={() => navigate('/')}
+          >
             <span className="text-lg font-bold text-primary">
               Dra. Aymée Frauzino
             </span>
-          </Link>
+          </Button>
           
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2 rounded-md text-gray-600 hover:bg-gray-100"
+            className="p-1"
           >
             {isSidebarOpen ? (
               <X className="h-6 w-6" />
             ) : (
               <Menu className="h-6 w-6" />
             )}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -133,29 +159,31 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <span className="text-lg font-bold text-primary">
                 Área Administrativa
               </span>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setIsSidebarOpen(false)}
-                className="p-2 rounded-md text-gray-600 hover:bg-gray-100"
+                className="p-1"
               >
                 <X className="h-6 w-6" />
-              </button>
+              </Button>
             </div>
             
             <nav className="mt-4 p-4 space-y-1">
               {navItems.map((item) => (
-                <Link
+                <Button
                   key={item.href}
-                  to={item.href}
-                  className={`flex items-center px-4 py-3 rounded-md transition-colors ${
+                  variant={isActive(item.href) ? "secondary" : "ghost"}
+                  className={`w-full justify-start ${
                     isActive(item.href)
                       ? 'bg-primary/10 text-primary font-medium'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
-                  onClick={() => setIsSidebarOpen(false)}
+                  onClick={() => handleNavigation(item.href)}
                 >
                   {item.icon}
                   <span className="ml-3">{item.title}</span>
-                </Link>
+                </Button>
               ))}
             </nav>
             
@@ -164,23 +192,20 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 variant="outline" 
                 size="sm" 
                 className="w-full justify-start"
-                asChild
+                onClick={() => {
+                  window.open('/', '_blank');
+                  setIsSidebarOpen(false);
+                }}
               >
-                <Link 
-                  to="/" 
-                  target="_blank"
-                  onClick={() => setIsSidebarOpen(false)}
-                >
-                  <Home className="h-4 w-4 mr-2" />
-                  Ver Site
-                </Link>
+                <Home className="h-4 w-4 mr-2" />
+                Ver Site
               </Button>
               
               <Button 
                 variant="ghost" 
                 className="w-full justify-start text-gray-600"
                 onClick={() => {
-                  signOut();
+                  handleSignOut();
                   setIsSidebarOpen(false);
                 }}
               >

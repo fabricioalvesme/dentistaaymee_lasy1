@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { DialogFooter } from "@/components/ui/dialog";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,9 +31,10 @@ interface EventFormProps {
   defaultValues: AppointmentFormValues;
   onSubmit: (data: AppointmentFormValues) => Promise<void>;
   isEditing: boolean;
+  onCancel: () => void;
 }
 
-export function EventForm({ defaultValues, onSubmit, isEditing }: EventFormProps) {
+export function EventForm({ defaultValues, onSubmit, isEditing, onCancel }: EventFormProps) {
   const [submitting, setSubmitting] = useState(false);
   
   const form = useForm<AppointmentFormValues>({
@@ -147,10 +147,17 @@ export function EventForm({ defaultValues, onSubmit, isEditing }: EventFormProps
           />
         </div>
         
-        <DialogFooter className="mt-8 sm:mt-6 pb-2">
+        <div className="flex justify-end gap-2 mt-8">
+          <Button 
+            type="button" 
+            variant="outline"
+            onClick={onCancel}
+          >
+            Cancelar
+          </Button>
+          
           <Button 
             type="submit" 
-            className="w-full sm:w-auto"
             disabled={submitting}
           >
             {submitting ? (
@@ -162,7 +169,7 @@ export function EventForm({ defaultValues, onSubmit, isEditing }: EventFormProps
               isEditing ? 'Salvar Alterações' : 'Adicionar Evento'
             )}
           </Button>
-        </DialogFooter>
+        </div>
       </form>
     </Form>
   );
