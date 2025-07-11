@@ -216,11 +216,7 @@ const Index = () => {
             <div className="md:w-2/3">
               <div className="prose max-w-none" dangerouslySetInnerHTML={{ 
                 __html: settings?.about_text || `
-                  <p>Dra. Aymée Frauzino é especialista em Odontopediatria, dedicada a proporcionar cuidados odontológicos de excelência para crianças de todas as idades.</p>
-                  
-                  <p>Formada pela Universidade Federal de Goiás, com especialização em Odontopediatria, possui ampla experiência no atendimento infantil, combinando técnica, conhecimento científico e uma abordagem lúdica e acolhedora.</p>
-                  
-                  <p>Seu consultório foi planejado para oferecer um ambiente tranquilo e divertido, onde as crianças possam se sentir seguras durante o tratamento. Dra. Aymée acredita que uma experiência positiva na infância é fundamental para formar adultos sem medo de ir ao dentista.</p>
+                  <p>Dra. Aymée Frauzino é especialista em Odontopediatria e apaixonada por cuidar de sorrisos desde os primeiros anos de vida. Com uma abordagem humanizada e acolhedora, ela transforma cada consulta em uma experiência leve e positiva para crianças e adolescentes.</p>
                 `
               }} />
               
@@ -242,7 +238,7 @@ const Index = () => {
           <h2 className="text-3xl font-bold text-center mb-4">Nossos Serviços</h2>
           <div className="text-center text-gray-600 mb-12 max-w-2xl mx-auto" dangerouslySetInnerHTML={{ 
             __html: settings?.services_text || `
-              <p>Oferecemos uma variedade de tratamentos odontológicos para garantir a saúde bucal e o bem-estar dos nossos pacientes.</p>
+              <p>Oferecemos uma variedade de tratamentos odontológicos voltados para o público infantil e familiar, com foco na prevenção, no cuidado humanizado e na excelência clínica.</p>
             `
           }} />
           

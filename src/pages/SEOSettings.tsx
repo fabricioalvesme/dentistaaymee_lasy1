@@ -38,8 +38,8 @@ type SEOSettingsValues = z.infer<typeof seoSettingsSchema>;
 const defaultValues: SEOSettingsValues = {
   meta_title: 'Dra. Aymée Frauzino – Odontopediatra',
   meta_description: 'Atendimento odontológico especializado para crianças em Morrinhos-GO. Odontopediatria de qualidade para a saúde bucal dos seus filhos.',
-  about_text: '',
-  services_text: '',
+  about_text: 'Dra. Aymée Frauzino é especialista em Odontopediatria e apaixonada por cuidar de sorrisos desde os primeiros anos de vida. Com uma abordagem humanizada e acolhedora, ela transforma cada consulta em uma experiência leve e positiva para crianças e adolescentes.',
+  services_text: 'Oferecemos uma variedade de tratamentos odontológicos voltados para o público infantil e familiar, com foco na prevenção, no cuidado humanizado e na excelência clínica.',
   convenios_text: 'Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.',
   logo_url: '',
   primary_color: '#3B82F6',
@@ -75,7 +75,6 @@ const SEOSettings = () => {
           console.error('Erro ao carregar configurações:', error);
           toast.error('Erro ao carregar configurações');
           form.reset(defaultValues);
-          setLoading(false);
           return;
         }
         
@@ -109,26 +108,16 @@ const SEOSettings = () => {
     }
 
     loadSettings();
-  }, []); // Executar apenas uma vez na montagem
+  }, [form]);
 
   const onSubmit = async (data: SEOSettingsValues) => {
     try {
       setSaving(true);
       console.log("Salvando configurações:", data);
       
-      // Preparar dados para envio
       const formattedData = {
-        meta_title: data.meta_title,
-        meta_description: data.meta_description,
-        about_text: data.about_text || '',
-        services_text: data.services_text || '',
-        convenios_text: data.convenios_text || defaultValues.convenios_text,
-        logo_url: data.logo_url || '',
-        primary_color: data.primary_color,
-        secondary_color: data.secondary_color,
-        accent_color: data.accent_color,
-        // Adicionando explicitamente o campo updated_at com o valor atual
-        updated_at: new Date().toISOString()
+        ...data,
+        updated_at: new Date().toISOString(),
       };
       
       let result;
@@ -139,35 +128,26 @@ const SEOSettings = () => {
         result = await supabase
           .from('settings')
           .update(formattedData)
-          .eq('id', settingsId);
-          
-        if (result.error) {
-          throw result.error;
-        }
-        
-        console.log("Configurações atualizadas com sucesso");
+          .eq('id', settingsId)
+          .select();
       } else {
         // Criar novas configurações
         console.log("Criando novas configurações");
         result = await supabase
           .from('settings')
-          .insert([{
-            ...formattedData,
-            created_at: new Date().toISOString() // Garantir que created_at também existe
-          }])
+          .insert([formattedData])
           .select();
-          
-        if (result.error) {
-          throw result.error;
-        }
-        
-        if (result.data && result.data.length > 0) {
-          setSettingsId(result.data[0].id);
-          console.log("Novas configurações criadas, ID:", result.data[0].id);
-        }
       }
       
-      // Aplicar variáveis CSS com as cores
+      if (result.error) {
+        throw result.error;
+      }
+      
+      if (result.data && result.data.length > 0) {
+        setSettingsId(result.data[0].id);
+        console.log("Configurações salvas com sucesso, ID:", result.data[0].id);
+      }
+      
       document.documentElement.style.setProperty('--color-primary', data.primary_color);
       document.documentElement.style.setProperty('--color-secondary', data.secondary_color);
       document.documentElement.style.setProperty('--color-accent', data.accent_color);
@@ -207,7 +187,6 @@ const SEOSettings = () => {
                   <TabsTrigger value="design">Design</TabsTrigger>
                 </TabsList>
                 
-                {/* Aba de SEO */}
                 <TabsContent value="seo" className="space-y-6 pt-4">
                   <FormField
                     control={form.control}
@@ -253,7 +232,6 @@ const SEOSettings = () => {
                   />
                 </TabsContent>
                 
-                {/* Aba de Conteúdo */}
                 <TabsContent value="conteudo" className="space-y-6 pt-4">
                   <FormField
                     control={form.control}
@@ -261,16 +239,11 @@ const SEOSettings = () => {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Texto da Seção "Sobre"</FormLabel>
-                        <FormDescription>
-                          Suporta HTML básico para formatação (negrito, links, parágrafos, etc.)
-                        </FormDescription>
                         <FormControl>
                           <Textarea 
                             {...field} 
-                            className="resize-none h-40 font-mono"
-                            placeholder='<p>Dra. Aymée Frauzino é especialista em Odontopediatria, dedicada a proporcionar cuidados odontológicos de excelência para crianças de todas as idades.</p>'
+                            className="resize-none h-40"
                             value={field.value || ''}
-                            onChange={(e) => field.onChange(e.target.value)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -284,16 +257,11 @@ const SEOSettings = () => {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Texto da Seção "Serviços"</FormLabel>
-                        <FormDescription>
-                          Suporta HTML básico para formatação (negrito, links, parágrafos, etc.)
-                        </FormDescription>
                         <FormControl>
                           <Textarea 
                             {...field} 
-                            className="resize-none h-40 font-mono"
-                            placeholder='<p>Oferecemos uma variedade de tratamentos odontológicos para garantir a saúde bucal e o bem-estar dos nossos pacientes.</p>'
+                            className="resize-none h-40"
                             value={field.value || ''}
-                            onChange={(e) => field.onChange(e.target.value)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -307,16 +275,11 @@ const SEOSettings = () => {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Texto da Seção "Convênios"</FormLabel>
-                        <FormDescription>
-                          Suporta HTML básico para formatação (negrito, links, parágrafos, etc.)
-                        </FormDescription>
                         <FormControl>
                           <Textarea 
                             {...field} 
-                            className="resize-none h-20 font-mono"
-                            placeholder='<p>Aceitamos os seguintes convênios: Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.</p>'
-                            value={field.value || defaultValues.convenios_text}
-                            onChange={(e) => field.onChange(e.target.value)}
+                            className="resize-none h-20"
+                            value={field.value || ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -325,7 +288,6 @@ const SEOSettings = () => {
                   />
                 </TabsContent>
                 
-                {/* Aba de Design */}
                 <TabsContent value="design" className="space-y-6 pt-4">
                   <FormField
                     control={form.control}
@@ -333,9 +295,6 @@ const SEOSettings = () => {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>URL do Logotipo</FormLabel>
-                        <FormDescription>
-                          Link direto para a imagem do logotipo (recomendado: 200x60px, fundo transparente)
-                        </FormDescription>
                         <FormControl>
                           <Input {...field} placeholder="https://exemplo.com/imagens/logo.png" />
                         </FormControl>
@@ -405,42 +364,12 @@ const SEOSettings = () => {
                       )}
                     />
                   </div>
-                  
-                  <div className="mt-6 p-4 bg-gray-50 rounded-md">
-                    <h3 className="font-medium mb-2">Pré-visualização de Cores</h3>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Botão Primário</p>
-                        <Button style={{ backgroundColor: form.watch('primary_color') }}>
-                          Botão Primário
-                        </Button>
-                      </div>
-                      
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Botão Secundário</p>
-                        <Button style={{ backgroundColor: form.watch('secondary_color') }}>
-                          Botão Secundário
-                        </Button>
-                      </div>
-                      
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Fundo de Destaque</p>
-                        <div 
-                          className="p-4 rounded-md"
-                          style={{ backgroundColor: form.watch('accent_color') }}
-                        >
-                          <p>Conteúdo com fundo de destaque</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </TabsContent>
               </Tabs>
               
               <Button 
                 type="submit" 
-                disabled={saving} 
+                disabled={saving || loading} 
                 className="w-full md:w-auto"
               >
                 {saving ? (

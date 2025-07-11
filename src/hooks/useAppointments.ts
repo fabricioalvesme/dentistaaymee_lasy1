@@ -90,6 +90,7 @@ export function useAppointments() {
       
       if (startDate >= endDate) {
         toast.error('A hora de início deve ser anterior à hora de fim');
+        setLoading(false);
         return false;
       }
       
@@ -103,19 +104,21 @@ export function useAppointments() {
       
       let result;
       
-      if (selectedEvent) {
+      if (selectedEvent && selectedEvent.id) {
         // Atualizar evento existente
         console.log("Atualizando evento existente:", selectedEvent.id);
         result = await supabase
           .from('appointments')
           .update(appointmentData)
-          .eq('id', selectedEvent.id);
+          .eq('id', selectedEvent.id)
+          .select();
       } else {
         // Criar novo evento
         console.log("Criando novo evento");
         result = await supabase
           .from('appointments')
-          .insert([appointmentData]);
+          .insert([appointmentData])
+          .select();
       }
       
       if (result.error) {
@@ -124,7 +127,7 @@ export function useAppointments() {
         return false;
       }
       
-      console.log("Evento salvo com sucesso:", result);
+      console.log("Evento salvo com sucesso:", result.data);
       toast.success(selectedEvent ? 'Evento atualizado com sucesso' : 'Evento criado com sucesso');
       
       // Recarregar a lista de compromissos após salvar
@@ -160,7 +163,7 @@ export function useAppointments() {
       toast.success('Evento excluído com sucesso');
       
       // Atualizar o estado local para refletir a exclusão
-      setAppointments(appointments.filter(a => a.id !== event.id));
+      setAppointments(prev => prev.filter(a => a.id !== event.id));
       return true;
     } catch (error: any) {
       console.error('Erro ao excluir evento:', error);
