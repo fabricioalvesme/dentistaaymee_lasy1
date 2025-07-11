@@ -73,7 +73,7 @@ export function useAppointments() {
   const saveAppointment = async (
     data: AppointmentFormValues, 
     selectedEvent: Appointment | null = null
-  ) => {
+  ): Promise<boolean> => {
     try {
       setLoading(true);
       console.log("Salvando compromisso:", { data, isEditing: !!selectedEvent });
@@ -101,45 +101,38 @@ export function useAppointments() {
         patient_id: data.patient_id || null,
       };
       
+      let result;
+      
       if (selectedEvent) {
         // Atualizar evento existente
         console.log("Atualizando evento existente:", selectedEvent.id);
-        const { data: updatedData, error } = await supabase
+        result = await supabase
           .from('appointments')
           .update(appointmentData)
-          .eq('id', selectedEvent.id)
-          .select();
-        
-        if (error) {
-          console.error("Erro ao atualizar evento:", error);
-          throw error;
-        }
-        
-        console.log("Evento atualizado com sucesso:", updatedData);
-        toast.success('Evento atualizado com sucesso');
+          .eq('id', selectedEvent.id);
       } else {
         // Criar novo evento
         console.log("Criando novo evento");
-        const { data: insertedData, error } = await supabase
+        result = await supabase
           .from('appointments')
-          .insert([appointmentData])
-          .select();
-        
-        if (error) {
-          console.error("Erro ao criar evento:", error);
-          throw error;
-        }
-        
-        console.log("Evento criado com sucesso:", insertedData);
-        toast.success('Evento criado com sucesso');
+          .insert([appointmentData]);
       }
+      
+      if (result.error) {
+        console.error("Erro ao salvar evento:", result.error);
+        toast.error('Erro ao salvar evento: ' + result.error.message);
+        return false;
+      }
+      
+      console.log("Evento salvo com sucesso:", result);
+      toast.success(selectedEvent ? 'Evento atualizado com sucesso' : 'Evento criado com sucesso');
       
       // Recarregar a lista de compromissos após salvar
       await loadAppointments();
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar evento:', error);
-      toast.error('Erro ao salvar evento. Tente novamente.');
+      toast.error('Erro ao salvar evento: ' + (error.message || 'Erro desconhecido'));
       return false;
     } finally {
       setLoading(false);
@@ -147,7 +140,7 @@ export function useAppointments() {
   };
 
   // Excluir evento
-  const deleteAppointment = async (event: Appointment) => {
+  const deleteAppointment = async (event: Appointment): Promise<boolean> => {
     try {
       setDeleting(true);
       console.log("Excluindo evento:", event.id);
@@ -159,18 +152,19 @@ export function useAppointments() {
       
       if (error) {
         console.error("Erro ao excluir evento:", error);
-        throw error;
+        toast.error('Erro ao excluir evento: ' + error.message);
+        return false;
       }
       
       console.log("Evento excluído com sucesso");
       toast.success('Evento excluído com sucesso');
       
-      // Recarregar a lista de compromissos após excluir
-      await loadAppointments();
+      // Atualizar o estado local para refletir a exclusão
+      setAppointments(appointments.filter(a => a.id !== event.id));
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao excluir evento:', error);
-      toast.error('Erro ao excluir evento');
+      toast.error('Erro ao excluir evento: ' + (error.message || 'Erro desconhecido'));
       return false;
     } finally {
       setDeleting(false);

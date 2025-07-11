@@ -24,9 +24,9 @@ import { Loader2 } from 'lucide-react';
 const seoSettingsSchema = z.object({
   meta_title: z.string().max(60, 'O título deve ter no máximo 60 caracteres'),
   meta_description: z.string().max(160, 'A descrição deve ter no máximo 160 caracteres'),
-  about_text: z.string(),
-  services_text: z.string(),
-  convenios_text: z.string(),
+  about_text: z.string().optional().default(''),
+  services_text: z.string().optional().default(''),
+  convenios_text: z.string().optional().default('Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.'),
   logo_url: z.string().url('URL inválida').or(z.string().length(0)),
   primary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Formato de cor inválido'),
   secondary_color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Formato de cor inválido'),
@@ -52,18 +52,15 @@ const SEOSettings = () => {
   const [saving, setSaving] = useState(false);
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('seo');
-  const [dataLoaded, setDataLoaded] = useState(false);
   
   const form = useForm<SEOSettingsValues>({
     resolver: zodResolver(seoSettingsSchema),
     defaultValues,
   });
 
-  // Carregar valores iniciais - executa apenas uma vez
+  // Carregar configurações iniciais
   useEffect(() => {
     async function loadSettings() {
-      if (dataLoaded) return; // Evita múltiplos carregamentos
-      
       try {
         console.log("Carregando configurações de SEO...");
         setLoading(true);
@@ -77,6 +74,8 @@ const SEOSettings = () => {
         if (error && error.code !== 'PGRST116') {
           console.error('Erro ao carregar configurações:', error);
           toast.error('Erro ao carregar configurações');
+          form.reset(defaultValues);
+          setLoading(false);
           return;
         }
         
@@ -84,7 +83,7 @@ const SEOSettings = () => {
           console.log("Configurações carregadas com sucesso:", data);
           setSettingsId(data.id);
           
-          // Resetar o form com os valores carregados
+          // Preencher o formulário com dados do banco ou valores padrão
           form.reset({
             meta_title: data.meta_title || defaultValues.meta_title,
             meta_description: data.meta_description || defaultValues.meta_description,
@@ -100,38 +99,44 @@ const SEOSettings = () => {
           console.log("Nenhuma configuração encontrada, usando valores padrão");
           form.reset(defaultValues);
         }
-        
-        setDataLoaded(true);
       } catch (error) {
         console.error('Erro ao carregar configurações:', error);
         toast.error('Erro ao carregar configurações');
+        form.reset(defaultValues);
       } finally {
         setLoading(false);
       }
     }
 
     loadSettings();
-  }, []); // Dependência vazia para executar apenas uma vez na montagem
+  }, []); // Executar apenas uma vez na montagem
 
   const onSubmit = async (data: SEOSettingsValues) => {
     try {
       setSaving(true);
       console.log("Salvando configurações:", data);
       
-      // Aplicar variáveis CSS com as cores
-      document.documentElement.style.setProperty('--color-primary', data.primary_color);
-      document.documentElement.style.setProperty('--color-secondary', data.secondary_color);
-      document.documentElement.style.setProperty('--color-accent', data.accent_color);
+      // Preparar dados para envio
+      const formattedData = {
+        meta_title: data.meta_title,
+        meta_description: data.meta_description,
+        about_text: data.about_text || '',
+        services_text: data.services_text || '',
+        convenios_text: data.convenios_text || defaultValues.convenios_text,
+        logo_url: data.logo_url || '',
+        primary_color: data.primary_color,
+        secondary_color: data.secondary_color,
+        accent_color: data.accent_color,
+      };
       
       let result;
       
-      // Usando upsert para simplificar - insere se não existir, atualiza se existir
       if (settingsId) {
         // Atualizar configurações existentes
         console.log("Atualizando configurações existentes, ID:", settingsId);
         result = await supabase
           .from('settings')
-          .update(data)
+          .update(formattedData)
           .eq('id', settingsId);
           
         if (result.error) {
@@ -144,7 +149,7 @@ const SEOSettings = () => {
         console.log("Criando novas configurações");
         result = await supabase
           .from('settings')
-          .insert([data])
+          .insert([formattedData])
           .select();
           
         if (result.error) {
@@ -157,34 +162,15 @@ const SEOSettings = () => {
         }
       }
       
+      // Aplicar variáveis CSS com as cores
+      document.documentElement.style.setProperty('--color-primary', data.primary_color);
+      document.documentElement.style.setProperty('--color-secondary', data.secondary_color);
+      document.documentElement.style.setProperty('--color-accent', data.accent_color);
+      
       toast.success('Configurações salvas com sucesso!');
-      
-      // Recarregar dados para garantir sincronização
-      const { data: reloadedData, error: reloadError } = await supabase
-        .from('settings')
-        .select('*')
-        .eq('id', settingsId || result.data?.[0]?.id)
-        .single();
-      
-      if (!reloadError && reloadedData) {
-        console.log("Configurações recarregadas após salvamento:", reloadedData);
-        
-        // Resetar o form com os valores atualizados do servidor
-        form.reset({
-          meta_title: reloadedData.meta_title,
-          meta_description: reloadedData.meta_description,
-          about_text: reloadedData.about_text || '',
-          services_text: reloadedData.services_text || '',
-          convenios_text: reloadedData.convenios_text,
-          logo_url: reloadedData.logo_url || '',
-          primary_color: reloadedData.primary_color,
-          secondary_color: reloadedData.secondary_color,
-          accent_color: reloadedData.accent_color,
-        });
-      }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar configurações:', error);
-      toast.error('Erro ao salvar configurações. Tente novamente.');
+      toast.error('Erro ao salvar configurações: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setSaving(false);
     }
@@ -278,6 +264,8 @@ const SEOSettings = () => {
                             {...field} 
                             className="resize-none h-40 font-mono"
                             placeholder='<p>Dra. Aymée Frauzino é especialista em Odontopediatria, dedicada a proporcionar cuidados odontológicos de excelência para crianças de todas as idades.</p>'
+                            value={field.value || ''}
+                            onChange={(e) => field.onChange(e.target.value)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -299,6 +287,8 @@ const SEOSettings = () => {
                             {...field} 
                             className="resize-none h-40 font-mono"
                             placeholder='<p>Oferecemos uma variedade de tratamentos odontológicos para garantir a saúde bucal e o bem-estar dos nossos pacientes.</p>'
+                            value={field.value || ''}
+                            onChange={(e) => field.onChange(e.target.value)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -320,6 +310,8 @@ const SEOSettings = () => {
                             {...field} 
                             className="resize-none h-20 font-mono"
                             placeholder='<p>Aceitamos os seguintes convênios: Unimed, Bradesco Saúde, Amil, SulAmérica e outros. Consulte disponibilidade.</p>'
+                            value={field.value || defaultValues.convenios_text}
+                            onChange={(e) => field.onChange(e.target.value)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -441,7 +433,12 @@ const SEOSettings = () => {
                 </TabsContent>
               </Tabs>
               
-              <Button type="submit" disabled={saving} className="w-full md:w-auto">
+              <Button 
+                type="submit" 
+                disabled={saving} 
+                className="w-full md:w-auto"
+                onClick={() => console.log("Botão Salvar clicado:", form.getValues())}
+              >
                 {saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

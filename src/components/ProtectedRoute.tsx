@@ -13,47 +13,42 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   const navigate = useNavigate();
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
 
   useEffect(() => {
-    // Esta função será executada apenas uma vez após determinar o estado de autenticação
-    const checkAuth = async () => {
-      try {
-        // Se ainda está carregando, retorne e aguarde o próximo ciclo
-        if (loading) return;
-        
-        console.log("ProtectedRoute - Estado de autenticação:", { 
-          user: !!user, 
-          loading, 
-          isAdmin, 
-          path: location.pathname 
-        });
-        
-        if (!user) {
-          console.log("Usuário não autenticado, redirecionando para login");
-          // Redirecionar para login, guardando a rota tentada
-          navigate('/admin/login', { 
-            replace: true,
-            state: { from: location.pathname }
-          });
-          return;
-        }
-        
-        if (requireAdmin && !isAdmin) {
-          console.log("Usuário não é admin, redirecionando para home");
-          navigate('/', { replace: true });
-          return;
-        }
-      } finally {
-        // Finaliza a verificação em qualquer caso
-        setIsChecking(false);
-      }
-    };
+    // Este efeito será executado quando o status de autenticação mudar
+    if (initialCheckDone) return;
     
-    checkAuth();
-  }, [user, loading, navigate, requireAdmin, isAdmin, location.pathname]);
+    // Se ainda está carregando, aguarde
+    if (loading) return;
+    
+    console.log("ProtectedRoute - Estado de autenticação:", { 
+      user: !!user, 
+      loading, 
+      isAdmin, 
+      path: location.pathname,
+      initialCheckDone 
+    });
+    
+    // Após carregar, verificar autenticação
+    if (!user) {
+      console.log("Usuário não autenticado, redirecionando para login");
+      navigate('/admin/login', { 
+        replace: true,
+        state: { from: location.pathname }
+      });
+    } else if (requireAdmin && !isAdmin) {
+      console.log("Usuário não é admin, redirecionando para home");
+      navigate('/', { replace: true });
+    }
+    
+    // Marcamos que a verificação inicial foi concluída
+    setInitialCheckDone(true);
+    setIsChecking(false);
+  }, [user, loading, isAdmin, navigate, location.pathname, requireAdmin, initialCheckDone]);
 
   // Mostra spinner enquanto verifica autenticação
-  if (loading || isChecking) {
+  if (loading || (isChecking && !initialCheckDone)) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
