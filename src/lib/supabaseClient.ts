@@ -4,35 +4,39 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Validar variáveis de ambiente
-if (!supabaseUrl) {
-  console.error('ERRO CRÍTICO: Variável de ambiente VITE_SUPABASE_URL não encontrada');
-  throw new Error('Configuração incorreta: VITE_SUPABASE_URL não está definida. Verifique as variáveis de ambiente.');
+let supabaseInstance: any = null;
+let supabaseInitializationError: string | null = null;
+
+// Validar variáveis de ambiente e inicializar o cliente
+if (!supabaseUrl || !supabaseAnonKey) {
+  supabaseInitializationError = 'As variáveis de ambiente do Supabase (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) não foram configuradas corretamente.';
+  console.error(`ERRO CRÍTICO: ${supabaseInitializationError}`);
+} else {
+  try {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+      },
+      global: {
+        headers: { 'x-application-name': 'dra-aymee-app' },
+      },
+      realtime: {
+        params: {
+          eventsPerSecond: 10,
+        },
+      },
+    });
+    console.log('Cliente Supabase inicializado com sucesso');
+  } catch (error: any) {
+    supabaseInitializationError = `Falha ao inicializar o cliente Supabase: ${error.message}`;
+    console.error(`ERRO CRÍTICO: ${supabaseInitializationError}`);
+  }
 }
 
-if (!supabaseAnonKey) {
-  console.error('ERRO CRÍTICO: Variável de ambiente VITE_SUPABASE_ANON_KEY não encontrada');
-  throw new Error('Configuração incorreta: VITE_SUPABASE_ANON_KEY não está definida. Verifique as variáveis de ambiente.');
-}
-
-// Inicializar cliente Supabase com opções adicionais
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  },
-  global: {
-    headers: { 'x-application-name': 'dra-aymee-app' },
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
-    },
-  },
-});
-
-console.log('Cliente Supabase inicializado com sucesso');
+export const supabase = supabaseInstance;
+export const supabaseError = supabaseInitializationError;
 
 // Tipos para as tabelas do Supabase
 export type Patient = {
