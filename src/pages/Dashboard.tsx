@@ -49,6 +49,7 @@ import { PatientFormPDFViewer } from '@/components/exports/PatientFormPDF';
 import { useTheme } from '@/contexts/ThemeContext';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { PatientFormPDF } from '@/components/exports/PatientFormPDF';
+import { UpcomingRemindersCard } from '@/components/dashboard/UpcomingRemindersCard';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -286,63 +287,55 @@ const Dashboard = () => {
           </div>
         </div>
         
-        {/* Cards com estatísticas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total de Pacientes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <User className="h-5 w-5 text-primary mr-2" />
-                <span className="text-2xl font-bold">{counts.total}</span>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Cards com estatísticas e lembretes */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total de Pacientes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center">
+                  <User className="h-5 w-5 text-primary mr-2" />
+                  <span className="text-2xl font-bold">{counts.total}</span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Rascunhos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 text-yellow-500 mr-2" />
+                  <span className="text-2xl font-bold">{counts.rascunho}</span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Assinados
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 text-green-500 mr-2" />
+                  <span className="text-2xl font-bold">{counts.assinado}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
           
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Rascunhos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <FileText className="h-5 w-5 text-yellow-500 mr-2" />
-                <span className="text-2xl font-bold">{counts.rascunho}</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Enviados
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <FileText className="h-5 w-5 text-blue-500 mr-2" />
-                <span className="text-2xl font-bold">{counts.enviado}</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Assinados
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <FileText className="h-5 w-5 text-green-500 mr-2" />
-                <span className="text-2xl font-bold">{counts.assinado}</span>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="lg:col-span-2">
+            <UpcomingRemindersCard />
+          </div>
         </div>
         
         {/* Filtros */}
