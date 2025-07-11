@@ -10,16 +10,8 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
 import {
   Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
 } from '@/components/ui/form';
 import {
   Tabs,
@@ -37,13 +29,14 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2, Save, Share2 } from 'lucide-react';
 
-import { RadioGroupField } from '@/components/forms/RadioGroupField';
-import { CheckboxField } from '@/components/forms/CheckboxField';
-import { YesNoField } from '@/components/forms/YesNoField';
 import { copyToClipboard } from '@/lib/utils';
-import { ReturnScheduler } from '@/components/patient/ReturnScheduler';
 import { Reminder } from '@/lib/types/reminder';
 import { useNotifications } from '@/hooks/useNotifications';
+
+import { PatientDataForm } from '@/components/forms/patient-form/PatientDataForm';
+import { HealthHistoryForm } from '@/components/forms/patient-form/HealthHistoryForm';
+import { TreatmentPlanForm } from '@/components/forms/patient-form/TreatmentPlanForm';
+import { ReturnSchedulerTab } from '@/components/forms/patient-form/ReturnSchedulerTab';
 
 // Schema para o formulário de paciente
 const patientSchema = z.object({
@@ -206,8 +199,6 @@ const NewPatientForm = () => {
       queixa_principal: '',
       tipo_parto: '',
       aleitamento: '',
-      
-      // Condições Médicas - todas false por padrão
       alergia_medicamentos: false,
       alergia_alimentar: false,
       doenca_cardiaca: false,
@@ -220,44 +211,30 @@ const NewPatientForm = () => {
       sindromes_geneticas: false,
       doenca_autoimune: false,
       disturbios_coagulacao: false,
-      
-      // Medicamentos - todos false por padrão
       uso_atual_medicamentos: false,
       medicamentos_continuos: false,
       uso_recente_antibioticos: false,
       suplementos_nutricionais: false,
-      
-      // Histórico Odontológico - todos false por padrão
       tratamento_odontologico_anterior: false,
       reacao_negativa_odontologica: false,
       necessidade_sedacao_especial: false,
       trauma_dental: false,
-      
-      // Comportamento e Atendimento - todos false por padrão
       ansiedade_consultas: false,
       dificuldade_colaboracao: false,
       historico_internacoes: false,
       necessidades_especiais: false,
-      
-      // Aspectos Pediátricos - todos false por padrão
       nascimento_prematuro: false,
       parto_complicacoes: false,
       uso_chupeta: false,
       habitos_succao_bruxismo: false,
       amamentacao_prolongada: false,
       alimentacao_especial: false,
-      
-      // Cirurgias e Internações - todos false por padrão
       realizou_cirurgia: false,
       foi_internado: false,
       transfusao_sangue: false,
-      
-      // Histórico Familiar - todos false por padrão
       doencas_hereditarias: false,
       historico_alergias_familia: false,
       problemas_dentarios_familia: false,
-      
-      // Outros campos existentes
       problemas_gestacao: '',
       presenca_doenca: '',
       idade_primeiro_dente: '',
@@ -289,7 +266,6 @@ const NewPatientForm = () => {
   const loadPatientReminders = async (patientId: string) => {
     try {
       const reminders = await getPatientReminders(patientId);
-      // Filtrar apenas lembretes de retorno
       const returnReminders = reminders.filter(r => r.type === 'return');
       setPatientReminders(returnReminders);
       return returnReminders;
@@ -306,68 +282,35 @@ const NewPatientForm = () => {
         try {
           setLoading(true);
           setLoadError(null);
-          console.log("Carregando dados do paciente:", id);
           
-          // Buscar dados do paciente
           const { data: patient, error: patientError } = await supabase
             .from('patients')
             .select('*')
             .eq('id', id)
             .single();
           
-          if (patientError) {
-            console.error("Erro ao carregar paciente:", patientError);
-            setLoadError('Erro ao carregar dados do paciente');
-            toast.error('Erro ao carregar dados do paciente');
+          if (patientError || !patient) {
+            setLoadError('Erro ao carregar dados do paciente.');
+            toast.error('Erro ao carregar dados do paciente.');
             setLoading(false);
             return;
           }
           
-          if (!patient) {
-            console.error("Paciente não encontrado");
-            setLoadError('Paciente não encontrado');
-            toast.error('Paciente não encontrado');
-            setLoading(false);
-            return;
-          }
-          
-          console.log("Dados do paciente carregados:", patient);
-          
-          // Buscar histórico de saúde
-          const { data: healthHistory, error: historyError } = await supabase
+          const { data: healthHistory } = await supabase
             .from('health_histories')
             .select('*')
             .eq('patient_id', id)
             .single();
           
-          if (historyError && historyError.code !== 'PGRST116') {
-            console.error("Erro ao carregar histórico de saúde:", historyError);
-            // Não interrompe o fluxo, apenas loga o erro
-          }
-          
-          console.log("Histórico de saúde:", healthHistory);
-          
-          // Buscar plano de tratamento
-          const { data: treatment, error: treatmentError } = await supabase
+          const { data: treatment } = await supabase
             .from('treatments')
             .select('*')
             .eq('patient_id', id)
             .single();
           
-          if (treatmentError && treatmentError.code !== 'PGRST116') {
-            console.error("Erro ao carregar plano de tratamento:", treatmentError);
-            // Não interrompe o fluxo, apenas loga o erro
-          }
+          await loadPatientReminders(id);
           
-          console.log("Plano de tratamento:", treatment);
-          
-          // Carregar lembretes de retorno do paciente
-          const reminders = await loadPatientReminders(id);
-          console.log("Lembretes de retorno:", reminders);
-          
-          // Preencher formulário com dados
           form.reset({
-            // Dados pessoais
             nome: patient.nome || '',
             data_nascimento: patient.data_nascimento || '',
             endereco: patient.endereco || '',
@@ -375,13 +318,9 @@ const NewPatientForm = () => {
             cpf: patient.cpf || '',
             telefone: patient.telefone || '',
             observacoes: patient.observacoes || '',
-            
-            // Informações básicas
             queixa_principal: healthHistory?.queixa_principal || '',
             tipo_parto: healthHistory?.tipo_parto || '',
             aleitamento: healthHistory?.aleitamento || '',
-            
-            // Condições Médicas
             alergia_medicamentos: healthHistory?.alergia_medicamentos || false,
             desc_alergia_medicamentos: healthHistory?.desc_alergia_medicamentos || '',
             alergia_alimentar: healthHistory?.alergia_alimentar || false,
@@ -406,8 +345,6 @@ const NewPatientForm = () => {
             desc_doenca_autoimune: healthHistory?.desc_doenca_autoimune || '',
             disturbios_coagulacao: healthHistory?.disturbios_coagulacao || false,
             desc_disturbios_coagulacao: healthHistory?.desc_disturbios_coagulacao || '',
-            
-            // Medicamentos
             uso_atual_medicamentos: healthHistory?.uso_atual_medicamentos || false,
             desc_uso_atual_medicamentos: healthHistory?.desc_uso_atual_medicamentos || '',
             medicamentos_continuos: healthHistory?.medicamentos_continuos || false,
@@ -416,8 +353,6 @@ const NewPatientForm = () => {
             desc_uso_recente_antibioticos: healthHistory?.desc_uso_recente_antibioticos || '',
             suplementos_nutricionais: healthHistory?.suplementos_nutricionais || false,
             desc_suplementos_nutricionais: healthHistory?.desc_suplementos_nutricionais || '',
-            
-            // Histórico Odontológico
             tratamento_odontologico_anterior: healthHistory?.tratamento_odontologico_anterior || false,
             desc_tratamento_odontologico_anterior: healthHistory?.desc_tratamento_odontologico_anterior || '',
             reacao_negativa_odontologica: healthHistory?.reacao_negativa_odontologica || false,
@@ -426,8 +361,6 @@ const NewPatientForm = () => {
             desc_necessidade_sedacao_especial: healthHistory?.desc_necessidade_sedacao_especial || '',
             trauma_dental: healthHistory?.trauma_dental || false,
             desc_trauma_dental: healthHistory?.desc_trauma_dental || '',
-            
-            // Comportamento e Atendimento
             ansiedade_consultas: healthHistory?.ansiedade_consultas || false,
             desc_ansiedade_consultas: healthHistory?.desc_ansiedade_consultas || '',
             dificuldade_colaboracao: healthHistory?.dificuldade_colaboracao || false,
@@ -436,8 +369,6 @@ const NewPatientForm = () => {
             desc_historico_internacoes: healthHistory?.desc_historico_internacoes || '',
             necessidades_especiais: healthHistory?.necessidades_especiais || false,
             desc_necessidades_especiais: healthHistory?.desc_necessidades_especiais || '',
-            
-            // Aspectos Pediátricos
             nascimento_prematuro: healthHistory?.nascimento_prematuro || false,
             desc_nascimento_prematuro: healthHistory?.desc_nascimento_prematuro || '',
             parto_complicacoes: healthHistory?.parto_complicacoes || false,
@@ -450,24 +381,18 @@ const NewPatientForm = () => {
             desc_amamentacao_prolongada: healthHistory?.desc_amamentacao_prolongada || '',
             alimentacao_especial: healthHistory?.alimentacao_especial || false,
             desc_alimentacao_especial: healthHistory?.desc_alimentacao_especial || '',
-            
-            // Cirurgias e Internações
             realizou_cirurgia: healthHistory?.realizou_cirurgia || false,
             desc_realizou_cirurgia: healthHistory?.desc_realizou_cirurgia || '',
             foi_internado: healthHistory?.foi_internado || false,
             desc_foi_internado: healthHistory?.desc_foi_internado || '',
             transfusao_sangue: healthHistory?.transfusao_sangue || false,
             desc_transfusao_sangue: healthHistory?.desc_transfusao_sangue || '',
-            
-            // Histórico Familiar
             doencas_hereditarias: healthHistory?.doencas_hereditarias || false,
             desc_doencas_hereditarias: healthHistory?.desc_doencas_hereditarias || '',
             historico_alergias_familia: healthHistory?.historico_alergias_familia || false,
             desc_historico_alergias_familia: healthHistory?.desc_historico_alergias_familia || '',
             problemas_dentarios_familia: healthHistory?.problemas_dentarios_familia || false,
             desc_problemas_dentarios_familia: healthHistory?.desc_problemas_dentarios_familia || '',
-            
-            // Outros campos que já existiam
             problemas_gestacao: healthHistory?.problemas_gestacao || '',
             presenca_doenca: healthHistory?.presenca_doenca || '',
             idade_primeiro_dente: healthHistory?.idade_primeiro_dente || '',
@@ -491,54 +416,33 @@ const NewPatientForm = () => {
             alteracao_coagulacao: healthHistory?.alteracao_coagulacao || '',
             internacoes_recentes: healthHistory?.internacoes_recentes || '',
             peso_atual: healthHistory?.peso_atual || '',
-            
-            // Plano de tratamento
             plano_tratamento: treatment?.plano_tratamento || '',
           });
-          
-          console.log("Formulário preenchido com dados carregados");
-          
         } catch (error) {
-          console.error("Erro ao carregar dados:", error);
-          setLoadError('Erro ao carregar dados do formulário');
-          toast.error('Erro ao carregar dados do formulário');
+          setLoadError('Erro ao carregar dados do formulário.');
+          toast.error('Erro ao carregar dados do formulário.');
         } finally {
           setLoading(false);
         }
       }
-      
       loadPatient();
     }
-  }, [id, navigate, form, getPatientReminders]);
+  }, [id, form, getPatientReminders]);
 
   // Função para validar a aba atual e passar para a próxima
-  const validateTabAndContinue = async () => {
-    try {
-      // Validar campos de acordo com a aba atual
-      if (activeTab === 'dados-pessoais') {
-        // Validar campos da aba dados pessoais
-        const isValid = await form.trigger([
-          'nome', 'data_nascimento', 'endereco', 'nome_responsavel', 'cpf', 'telefone'
-        ]);
-        
-        if (isValid) {
-          setActiveTab('historico-saude');
-        }
-      } else if (activeTab === 'historico-saude') {
-        // Validar campos da aba histórico de saúde
-        const isValid = await form.trigger([
-          'queixa_principal', 'tipo_parto', 'aleitamento'
-        ]);
-        
-        if (isValid) {
-          setActiveTab('plano-tratamento');
-        }
-      } else if (activeTab === 'plano-tratamento') {
-        // Se já está na aba de plano de tratamento, pular para retorno
-        setActiveTab('agendamento-retorno');
-      }
-    } catch (error) {
-      console.error('Erro ao validar campos:', error);
+  const validateTabAndContinue = async (nextTab: string) => {
+    let fieldsToValidate: (keyof PatientFormValues)[] = [];
+    if (activeTab === 'dados-pessoais') {
+      fieldsToValidate = ['nome', 'data_nascimento', 'endereco', 'nome_responsavel', 'cpf', 'telefone'];
+    } else if (activeTab === 'historico-saude') {
+      fieldsToValidate = ['queixa_principal', 'tipo_parto', 'aleitamento'];
+    }
+    
+    const isValid = await form.trigger(fieldsToValidate);
+    if (isValid) {
+      setActiveTab(nextTab);
+    } else {
+      toast.info('Por favor, preencha todos os campos obrigatórios (*).');
     }
   };
 
@@ -546,258 +450,98 @@ const NewPatientForm = () => {
   const onSubmit = async (data: PatientFormValues, share: boolean = false) => {
     try {
       setSaving(true);
-      console.log("Salvando formulário:", data);
       
-      // Preparar dados do paciente
       const patientData = {
-        nome: data.nome,
-        data_nascimento: data.data_nascimento,
-        endereco: data.endereco,
-        nome_responsavel: data.nome_responsavel,
-        cpf: data.cpf,
-        telefone: data.telefone,
-        observacoes: data.observacoes,
-        status: share ? 'enviado' : 'rascunho',
+        nome: data.nome, data_nascimento: data.data_nascimento, endereco: data.endereco,
+        nome_responsavel: data.nome_responsavel, cpf: data.cpf, telefone: data.telefone,
+        observacoes: data.observacoes, status: share ? 'enviado' : 'rascunho',
       };
       
-      // Preparar dados do histórico de saúde
       const healthHistoryData = {
-        queixa_principal: data.queixa_principal,
-        tipo_parto: data.tipo_parto,
-        aleitamento: data.aleitamento,
-        
-        // Condições Médicas
-        alergia_medicamentos: data.alergia_medicamentos,
-        desc_alergia_medicamentos: data.desc_alergia_medicamentos,
-        alergia_alimentar: data.alergia_alimentar,
-        desc_alergia_alimentar: data.desc_alergia_alimentar,
-        doenca_cardiaca: data.doenca_cardiaca,
-        desc_doenca_cardiaca: data.desc_doenca_cardiaca,
-        diabetes: data.diabetes,
-        desc_diabetes: data.desc_diabetes,
-        disturbios_neurologicos: data.disturbios_neurologicos,
-        desc_disturbios_neurologicos: data.desc_disturbios_neurologicos,
-        epilepsia_convulsoes: data.epilepsia_convulsoes,
-        desc_epilepsia_convulsoes: data.desc_epilepsia_convulsoes,
-        hipertensao: data.hipertensao,
-        desc_hipertensao: data.desc_hipertensao,
-        asma: data.asma,
-        desc_asma: data.desc_asma,
-        doenca_renal: data.doenca_renal,
-        desc_doenca_renal: data.desc_doenca_renal,
-        sindromes_geneticas: data.sindromes_geneticas,
-        desc_sindromes_geneticas: data.desc_sindromes_geneticas,
-        doenca_autoimune: data.doenca_autoimune,
-        desc_doenca_autoimune: data.desc_doenca_autoimune,
-        disturbios_coagulacao: data.disturbios_coagulacao,
-        desc_disturbios_coagulacao: data.desc_disturbios_coagulacao,
-        
-        // Medicamentos
-        uso_atual_medicamentos: data.uso_atual_medicamentos,
-        desc_uso_atual_medicamentos: data.desc_uso_atual_medicamentos,
-        medicamentos_continuos: data.medicamentos_continuos,
-        desc_medicamentos_continuos: data.desc_medicamentos_continuos,
-        uso_recente_antibioticos: data.uso_recente_antibioticos,
-        desc_uso_recente_antibioticos: data.desc_uso_recente_antibioticos,
-        suplementos_nutricionais: data.suplementos_nutricionais,
-        desc_suplementos_nutricionais: data.desc_suplementos_nutricionais,
-        
-        // Histórico Odontológico
-        tratamento_odontologico_anterior: data.tratamento_odontologico_anterior,
-        desc_tratamento_odontologico_anterior: data.desc_tratamento_odontologico_anterior,
-        reacao_negativa_odontologica: data.reacao_negativa_odontologica,
-        desc_reacao_negativa_odontologica: data.desc_reacao_negativa_odontologica,
-        necessidade_sedacao_especial: data.necessidade_sedacao_especial,
-        desc_necessidade_sedacao_especial: data.desc_necessidade_sedacao_especial,
-        trauma_dental: data.trauma_dental,
-        desc_trauma_dental: data.desc_trauma_dental,
-        
-        // Comportamento e Atendimento
-        ansiedade_consultas: data.ansiedade_consultas,
-        desc_ansiedade_consultas: data.desc_ansiedade_consultas,
-        dificuldade_colaboracao: data.dificuldade_colaboracao,
-        desc_dificuldade_colaboracao: data.desc_dificuldade_colaboracao,
-        historico_internacoes: data.historico_internacoes,
-        desc_historico_internacoes: data.desc_historico_internacoes,
-        necessidades_especiais: data.necessidades_especiais,
-        desc_necessidades_especiais: data.desc_necessidades_especiais,
-        
-        // Aspectos Pediátricos
-        nascimento_prematuro: data.nascimento_prematuro,
-        desc_nascimento_prematuro: data.desc_nascimento_prematuro,
-        parto_complicacoes: data.parto_complicacoes,
-        desc_parto_complicacoes: data.desc_parto_complicacoes,
-        uso_chupeta: data.uso_chupeta,
-        desc_uso_chupeta: data.desc_uso_chupeta,
-        habitos_succao_bruxismo: data.habitos_succao_bruxismo,
-        desc_habitos_succao_bruxismo: data.desc_habitos_succao_bruxismo,
-        amamentacao_prolongada: data.amamentacao_prolongada,
-        desc_amamentacao_prolongada: data.desc_amamentacao_prolongada,
-        alimentacao_especial: data.alimentacao_especial,
-        desc_alimentacao_especial: data.desc_alimentacao_especial,
-        
-        // Cirurgias e Internações
-        realizou_cirurgia: data.realizou_cirurgia,
-        desc_realizou_cirurgia: data.desc_realizou_cirurgia,
-        foi_internado: data.foi_internado,
-        desc_foi_internado: data.desc_foi_internado,
-        transfusao_sangue: data.transfusao_sangue,
-        desc_transfusao_sangue: data.desc_transfusao_sangue,
-        
-        // Histórico Familiar
-        doencas_hereditarias: data.doencas_hereditarias,
-        desc_doencas_hereditarias: data.desc_doencas_hereditarias,
-        historico_alergias_familia: data.historico_alergias_familia,
-        desc_historico_alergias_familia: data.desc_historico_alergias_familia,
-        problemas_dentarios_familia: data.problemas_dentarios_familia,
-        desc_problemas_dentarios_familia: data.desc_problemas_dentarios_familia,
-        
-        // Outros campos que já existiam
-        problemas_gestacao: data.problemas_gestacao,
-        presenca_doenca: data.presenca_doenca,
-        idade_primeiro_dente: data.idade_primeiro_dente,
-        anestesia_odontologica: data.anestesia_odontologica,
-        frequencia_escovacao: data.frequencia_escovacao,
-        creme_dental: data.creme_dental,
-        contem_fluor: data.contem_fluor,
-        uso_fio_dental: data.uso_fio_dental,
-        quem_realiza_escovacao: data.quem_realiza_escovacao,
-        uso_mamadeira: data.uso_mamadeira,
-        refeicoes_diarias: data.refeicoes_diarias,
-        fonte_acucar: data.fonte_acucar,
-        habito_succao: data.habito_succao,
-        roer_unhas: data.roer_unhas,
-        dormir_boca_aberta: data.dormir_boca_aberta,
-        vacinacao_dia: data.vacinacao_dia,
-        problemas_cardiacos: data.problemas_cardiacos,
-        problemas_renais: data.problemas_renais,
-        problemas_gastricos: data.problemas_gastricos,
-        problemas_respiratorios: data.problemas_respiratorios,
-        alteracao_coagulacao: data.alteracao_coagulacao,
-        internacoes_recentes: data.internacoes_recentes,
+        queixa_principal: data.queixa_principal, tipo_parto: data.tipo_parto, aleitamento: data.aleitamento,
+        alergia_medicamentos: data.alergia_medicamentos, desc_alergia_medicamentos: data.desc_alergia_medicamentos,
+        alergia_alimentar: data.alergia_alimentar, desc_alergia_alimentar: data.desc_alergia_alimentar,
+        doenca_cardiaca: data.doenca_cardiaca, desc_doenca_cardiaca: data.desc_doenca_cardiaca,
+        diabetes: data.diabetes, desc_diabetes: data.desc_diabetes,
+        disturbios_neurologicos: data.disturbios_neurologicos, desc_disturbios_neurologicos: data.desc_disturbios_neurologicos,
+        epilepsia_convulsoes: data.epilepsia_convulsoes, desc_epilepsia_convulsoes: data.desc_epilepsia_convulsoes,
+        hipertensao: data.hipertensao, desc_hipertensao: data.desc_hipertensao,
+        asma: data.asma, desc_asma: data.desc_asma,
+        doenca_renal: data.doenca_renal, desc_doenca_renal: data.desc_doenca_renal,
+        sindromes_geneticas: data.sindromes_geneticas, desc_sindromes_geneticas: data.desc_sindromes_geneticas,
+        doenca_autoimune: data.doenca_autoimune, desc_doenca_autoimune: data.desc_doenca_autoimune,
+        disturbios_coagulacao: data.disturbios_coagulacao, desc_disturbios_coagulacao: data.desc_disturbios_coagulacao,
+        uso_atual_medicamentos: data.uso_atual_medicamentos, desc_uso_atual_medicamentos: data.desc_uso_atual_medicamentos,
+        medicamentos_continuos: data.medicamentos_continuos, desc_medicamentos_continuos: data.desc_medicamentos_continuos,
+        uso_recente_antibioticos: data.uso_recente_antibioticos, desc_uso_recente_antibioticos: data.desc_uso_recente_antibioticos,
+        suplementos_nutricionais: data.suplementos_nutricionais, desc_suplementos_nutricionais: data.desc_suplementos_nutricionais,
+        tratamento_odontologico_anterior: data.tratamento_odontologico_anterior, desc_tratamento_odontologico_anterior: data.desc_tratamento_odontologico_anterior,
+        reacao_negativa_odontologica: data.reacao_negativa_odontologica, desc_reacao_negativa_odontologica: data.desc_reacao_negativa_odontologica,
+        necessidade_sedacao_especial: data.necessidade_sedacao_especial, desc_necessidade_sedacao_especial: data.desc_necessidade_sedacao_especial,
+        trauma_dental: data.trauma_dental, desc_trauma_dental: data.desc_trauma_dental,
+        ansiedade_consultas: data.ansiedade_consultas, desc_ansiedade_consultas: data.desc_ansiedade_consultas,
+        dificuldade_colaboracao: data.dificuldade_colaboracao, desc_dificuldade_colaboracao: data.desc_dificuldade_colaboracao,
+        historico_internacoes: data.historico_internacoes, desc_historico_internacoes: data.desc_historico_internacoes,
+        necessidades_especiais: data.necessidades_especiais, desc_necessidades_especiais: data.desc_necessidades_especiais,
+        nascimento_prematuro: data.nascimento_prematuro, desc_nascimento_prematuro: data.desc_nascimento_prematuro,
+        parto_complicacoes: data.parto_complicacoes, desc_parto_complicacoes: data.desc_parto_complicacoes,
+        uso_chupeta: data.uso_chupeta, desc_uso_chupeta: data.desc_uso_chupeta,
+        habitos_succao_bruxismo: data.habitos_succao_bruxismo, desc_habitos_succao_bruxismo: data.desc_habitos_succao_bruxismo,
+        amamentacao_prolongada: data.amamentacao_prolongada, desc_amamentacao_prolongada: data.desc_amamentacao_prolongada,
+        alimentacao_especial: data.alimentacao_especial, desc_alimentacao_especial: data.desc_alimentacao_especial,
+        realizou_cirurgia: data.realizou_cirurgia, desc_realizou_cirurgia: data.desc_realizou_cirurgia,
+        foi_internado: data.foi_internado, desc_foi_internado: data.desc_foi_internado,
+        transfusao_sangue: data.transfusao_sangue, desc_transfusao_sangue: data.desc_transfusao_sangue,
+        doencas_hereditarias: data.doencas_hereditarias, desc_doencas_hereditarias: data.desc_doencas_hereditarias,
+        historico_alergias_familia: data.historico_alergias_familia, desc_historico_alergias_familia: data.desc_historico_alergias_familia,
+        problemas_dentarios_familia: data.problemas_dentarios_familia, desc_problemas_dentarios_familia: data.desc_problemas_dentarios_familia,
+        problemas_gestacao: data.problemas_gestacao, presenca_doenca: data.presenca_doenca,
+        idade_primeiro_dente: data.idade_primeiro_dente, anestesia_odontologica: data.anestesia_odontologica,
+        frequencia_escovacao: data.frequencia_escovacao, creme_dental: data.creme_dental,
+        contem_fluor: data.contem_fluor, uso_fio_dental: data.uso_fio_dental,
+        quem_realiza_escovacao: data.quem_realiza_escovacao, uso_mamadeira: data.uso_mamadeira,
+        refeicoes_diarias: data.refeicoes_diarias, fonte_acucar: data.fonte_acucar,
+        habito_succao: data.habito_succao, roer_unhas: data.roer_unhas,
+        dormir_boca_aberta: data.dormir_boca_aberta, vacinacao_dia: data.vacinacao_dia,
+        problemas_cardiacos: data.problemas_cardiacos, problemas_renais: data.problemas_renais,
+        problemas_gastricos: data.problemas_gastricos, problemas_respiratorios: data.problemas_respiratorios,
+        alteracao_coagulacao: data.alteracao_coagulacao, internacoes_recentes: data.internacoes_recentes,
         peso_atual: data.peso_atual,
       };
       
-      // Preparar dados do plano de tratamento
-      const treatmentData = {
-        plano_tratamento: data.plano_tratamento,
-      };
+      const treatmentData = { plano_tratamento: data.plano_tratamento };
       
       let patientId = id;
       
       if (id) {
-        // Atualizar paciente existente
-        console.log("Atualizando paciente existente:", id);
-        const { error: updateError } = await supabase
-          .from('patients')
-          .update(patientData)
-          .eq('id', id);
-        
-        if (updateError) {
-          console.error("Erro ao atualizar paciente:", updateError);
-          throw updateError;
-        }
+        const { error } = await supabase.from('patients').update(patientData).eq('id', id);
+        if (error) throw error;
       } else {
-        // Criar novo paciente
-        console.log("Criando novo paciente");
-        const { data: newPatient, error: insertError } = await supabase
-          .from('patients')
-          .insert([patientData])
-          .select();
-        
-        if (insertError) {
-          console.error("Erro ao criar paciente:", insertError);
-          throw insertError;
-        }
-        
-        if (!newPatient || newPatient.length === 0) {
-          throw new Error("Erro ao criar paciente: nenhum dado retornado");
-        }
-        
+        const { data: newPatient, error } = await supabase.from('patients').insert([patientData]).select();
+        if (error || !newPatient) throw error || new Error("Falha ao criar paciente.");
         patientId = newPatient[0].id;
-        console.log("Novo paciente criado, ID:", patientId);
       }
       
-      // Salvar histórico de saúde
       if (patientId) {
-        // Verificar se já existe um histórico para este paciente
-        const { data: existingHistory } = await supabase
-          .from('health_histories')
-          .select('id')
-          .eq('patient_id', patientId)
-          .single();
-        
+        const { data: existingHistory } = await supabase.from('health_histories').select('id').eq('patient_id', patientId).single();
         if (existingHistory) {
-          // Atualizar histórico existente
-          console.log("Atualizando histórico existente:", existingHistory.id);
-          const { error: historyError } = await supabase
-            .from('health_histories')
-            .update({
-              ...healthHistoryData,
-              patient_id: patientId
-            })
-            .eq('id', existingHistory.id);
-          
-          if (historyError) {
-            console.error("Erro ao atualizar histórico de saúde:", historyError);
-            throw historyError;
-          }
+          const { error } = await supabase.from('health_histories').update({ ...healthHistoryData, patient_id: patientId }).eq('id', existingHistory.id);
+          if (error) throw error;
         } else {
-          // Criar novo histórico
-          console.log("Criando novo histórico de saúde");
-          const { error: historyError } = await supabase
-            .from('health_histories')
-            .insert([{
-              ...healthHistoryData,
-              patient_id: patientId
-            }]);
-          
-          if (historyError) {
-            console.error("Erro ao criar histórico de saúde:", historyError);
-            throw historyError;
-          }
+          const { error } = await supabase.from('health_histories').insert([{ ...healthHistoryData, patient_id: patientId }]);
+          if (error) throw error;
         }
         
-        // Verificar se já existe um plano de tratamento para este paciente
-        const { data: existingTreatment } = await supabase
-          .from('treatments')
-          .select('id')
-          .eq('patient_id', patientId)
-          .single();
-        
+        const { data: existingTreatment } = await supabase.from('treatments').select('id').eq('patient_id', patientId).single();
         if (existingTreatment) {
-          // Atualizar plano existente
-          console.log("Atualizando plano de tratamento existente:", existingTreatment.id);
-          const { error: treatmentError } = await supabase
-            .from('treatments')
-            .update({
-              ...treatmentData,
-              patient_id: patientId
-            })
-            .eq('id', existingTreatment.id);
-          
-          if (treatmentError) {
-            console.error("Erro ao atualizar plano de tratamento:", treatmentError);
-            throw treatmentError;
-          }
+          const { error } = await supabase.from('treatments').update({ ...treatmentData, patient_id: patientId }).eq('id', existingTreatment.id);
+          if (error) throw error;
         } else if (data.plano_tratamento) {
-          // Criar novo plano apenas se houver texto
-          console.log("Criando novo plano de tratamento");
-          const { error: treatmentError } = await supabase
-            .from('treatments')
-            .insert([{
-              ...treatmentData,
-              patient_id: patientId
-            }]);
-          
-          if (treatmentError) {
-            console.error("Erro ao criar plano de tratamento:", treatmentError);
-            throw treatmentError;
-          }
+          const { error } = await supabase.from('treatments').insert([{ ...treatmentData, patient_id: patientId }]);
+          if (error) throw error;
         }
         
         if (share) {
-          // Gerar link de compartilhamento
           const shareLink = `${window.location.origin}/public/form?id=${patientId}`;
           setShareLink(shareLink);
           setShowShareDialog(true);
@@ -807,33 +551,19 @@ const NewPatientForm = () => {
         }
       }
     } catch (error: any) {
-      console.error('Erro ao salvar formulário:', error);
       toast.error('Erro ao salvar formulário: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setSaving(false);
     }
   };
 
-  // Copiar link para a área de transferência
   const copyToClipboardHandler = async () => {
     setIsCopying(true);
-    try {
-      const success = await copyToClipboard(shareLink);
-      
-      if (success) {
-        toast.success('Link copiado para a área de transferência');
-      } else {
-        toast.error('Não foi possível copiar o link. Tente copiar manualmente.');
-      }
-    } catch (error) {
-      console.error('Erro ao copiar link:', error);
-      toast.error('Erro ao copiar o link');
-    } finally {
-      setIsCopying(false);
-    }
+    const success = await copyToClipboard(shareLink);
+    toast[success ? 'success' : 'error'](success ? 'Link copiado!' : 'Falha ao copiar.');
+    setIsCopying(false);
   };
 
-  // Handler para quando um lembrete é criado
   const handleReminderCreated = (reminder: Reminder) => {
     setPatientReminders(prev => [...prev, reminder]);
   };
@@ -857,20 +587,7 @@ const NewPatientForm = () => {
         ) : loadError ? (
           <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
             <p className="font-medium">{loadError}</p>
-            <p className="mt-2">Tente novamente ou volte para o dashboard.</p>
-            <div className="mt-4 flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => window.location.reload()}
-              >
-                Tentar novamente
-              </Button>
-              <Button 
-                onClick={() => navigate('/admin/dashboard')}
-              >
-                Voltar para o Dashboard
-              </Button>
-            </div>
+            <Button variant="outline" onClick={() => window.location.reload()} className="mt-2">Tentar novamente</Button>
           </div>
         ) : (
           <Form {...form}>
@@ -883,606 +600,44 @@ const NewPatientForm = () => {
                   <TabsTrigger value="agendamento-retorno">Agendamento de Retorno</TabsTrigger>
                 </TabsList>
                 
-                {/* Aba de Dados Pessoais */}
                 <TabsContent value="dados-pessoais" className="space-y-6 pt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="nome"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome do Paciente*</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="data_nascimento"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Data de Nascimento*</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="nome_responsavel"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome do Responsável*</FormLabel>
-                          <FormControl>
-                            <Input {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="cpf"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>CPF do Responsável*</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              placeholder="000.000.000-00"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="telefone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Telefone de Contato*</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              placeholder="(00) 00000-0000"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="endereco"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Endereço Completo*</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="observacoes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Observações</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            {...field} 
-                            placeholder="Informações adicionais relevantes..."
-                            className="resize-none h-20"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
+                  <PatientDataForm control={form.control} />
                   <div className="flex justify-end">
-                    <Button 
-                      type="button" 
-                      onClick={validateTabAndContinue}
-                    >
-                      Próximo
-                    </Button>
+                    <Button type="button" onClick={() => validateTabAndContinue('historico-saude')}>Próximo</Button>
                   </div>
                 </TabsContent>
                 
-                {/* Aba de Histórico de Saúde */}
                 <TabsContent value="historico-saude" className="space-y-6 pt-4">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Informações Gerais</h3>
-                    
-                    <FormField
-                      control={form.control}
-                      name="queixa_principal"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Queixa Principal*</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              {...field} 
-                              placeholder="Descreva o principal motivo da consulta..."
-                              className="resize-none"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <RadioGroupField
-                        control={form.control}
-                        name="tipo_parto"
-                        label="Tipo de Parto*"
-                        options={[
-                          { value: 'Normal', label: 'Normal' },
-                          { value: 'Cesárea', label: 'Cesárea' }
-                        ]}
-                      />
-                      
-                      <RadioGroupField
-                        control={form.control}
-                        name="aleitamento"
-                        label="Aleitamento*"
-                        options={[
-                          { value: 'Materno', label: 'Materno' },
-                          { value: 'Fórmula', label: 'Fórmula' },
-                          { value: 'Misto', label: 'Misto' }
-                        ]}
-                      />
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Condições Médicas */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Condições Médicas</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <YesNoField
-                        control={form.control}
-                        name="alergia_medicamentos"
-                        detailName="desc_alergia_medicamentos"
-                        label="Alergia a medicamentos"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="alergia_alimentar"
-                        detailName="desc_alergia_alimentar"
-                        label="Alergia alimentar"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="doenca_cardiaca"
-                        detailName="desc_doenca_cardiaca"
-                        label="Doença cardíaca"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="diabetes"
-                        detailName="desc_diabetes"
-                        label="Diabetes"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="disturbios_neurologicos"
-                        detailName="desc_disturbios_neurologicos"
-                        label="Distúrbios neurológicos"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="epilepsia_convulsoes"
-                        detailName="desc_epilepsia_convulsoes"
-                        label="Epilepsia ou convulsões"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="hipertensao"
-                        detailName="desc_hipertensao"
-                        label="Hipertensão"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="asma"
-                        detailName="desc_asma"
-                        label="Asma"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="doenca_renal"
-                        detailName="desc_doenca_renal"
-                        label="Doença renal"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="sindromes_geneticas"
-                        detailName="desc_sindromes_geneticas"
-                        label="Síndromes genéticas"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="doenca_autoimune"
-                        detailName="desc_doenca_autoimune"
-                        label="Doença autoimune"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="disturbios_coagulacao"
-                        detailName="desc_disturbios_coagulacao"
-                        label="Distúrbios de coagulação"
-                      />
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Medicamentos */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Medicamentos</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <YesNoField
-                        control={form.control}
-                        name="uso_atual_medicamentos"
-                        detailName="desc_uso_atual_medicamentos"
-                        label="Uso atual de medicamentos"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="medicamentos_continuos"
-                        detailName="desc_medicamentos_continuos"
-                        label="Medicamentos contínuos"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="uso_recente_antibioticos"
-                        detailName="desc_uso_recente_antibioticos"
-                        label="Uso recente de antibióticos"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="suplementos_nutricionais"
-                        detailName="desc_suplementos_nutricionais"
-                        label="Suplementos nutricionais"
-                      />
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Histórico Odontológico */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Histórico Odontológico</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <YesNoField
-                        control={form.control}
-                        name="tratamento_odontologico_anterior"
-                        detailName="desc_tratamento_odontologico_anterior"
-                        label="Já fez tratamento odontológico?"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="reacao_negativa_odontologica"
-                        detailName="desc_reacao_negativa_odontologica"
-                        label="Já teve reação negativa em atendimento odontológico?"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="necessidade_sedacao_especial"
-                        detailName="desc_necessidade_sedacao_especial"
-                        label="Já precisou de sedação ou anestesia especial?"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="trauma_dental"
-                        detailName="desc_trauma_dental"
-                        label="Já sofreu trauma dental (quedas, batidas, fraturas)?"
-                      />
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Comportamento e Atendimento */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Comportamento e Atendimento</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <YesNoField
-                        control={form.control}
-                        name="ansiedade_consultas"
-                        detailName="desc_ansiedade_consultas"
-                        label="Ansiedade em consultas médicas ou odontológicas"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="dificuldade_colaboracao"
-                        detailName="desc_dificuldade_colaboracao"
-                        label="Dificuldade de colaboração durante atendimento"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="historico_internacoes"
-                        detailName="desc_historico_internacoes"
-                        label="Histórico de internações hospitalares"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="necessidades_especiais"
-                        detailName="desc_necessidades_especiais"
-                        label="Presença de deficiência ou necessidades especiais"
-                      />
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Aspectos Pediátricos */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Aspectos Pediátricos</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <YesNoField
-                        control={form.control}
-                        name="nascimento_prematuro"
-                        detailName="desc_nascimento_prematuro"
-                        label="Nascimento prematuro"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="parto_complicacoes"
-                        detailName="desc_parto_complicacoes"
-                        label="Parto com complicações"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="uso_chupeta"
-                        detailName="desc_uso_chupeta"
-                        label="Uso de chupeta"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="habitos_succao_bruxismo"
-                        detailName="desc_habitos_succao_bruxismo"
-                        label="Hábitos de sucção ou bruxismo"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="amamentacao_prolongada"
-                        detailName="desc_amamentacao_prolongada"
-                        label="Amamentação prolongada"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="alimentacao_especial"
-                        detailName="desc_alimentacao_especial"
-                        label="Alimentação especial (seletividade ou restrições)"
-                      />
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Cirurgias e Internações */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Cirurgias e Internações</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <YesNoField
-                        control={form.control}
-                        name="realizou_cirurgia"
-                        detailName="desc_realizou_cirurgia"
-                        label="Já realizou cirurgia?"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="foi_internado"
-                        detailName="desc_foi_internado"
-                        label="Já foi internado?"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="transfusao_sangue"
-                        detailName="desc_transfusao_sangue"
-                        label="Já teve transfusão de sangue?"
-                      />
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Histórico Familiar */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Histórico Familiar</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <YesNoField
-                        control={form.control}
-                        name="doencas_hereditarias"
-                        detailName="desc_doencas_hereditarias"
-                        label="Doenças hereditárias"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="historico_alergias_familia"
-                        detailName="desc_historico_alergias_familia"
-                        label="Histórico de alergias na família"
-                      />
-                      
-                      <YesNoField
-                        control={form.control}
-                        name="problemas_dentarios_familia"
-                        detailName="desc_problemas_dentarios_familia"
-                        label="Problemas dentários frequentes na família"
-                      />
-                    </div>
-                  </div>
-                  
+                  <HealthHistoryForm control={form.control} />
                   <div className="flex justify-between">
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={() => setActiveTab('dados-pessoais')}
-                    >
-                      Voltar
-                    </Button>
-                    
-                    <Button type="button" onClick={validateTabAndContinue}>
-                      Próximo
-                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setActiveTab('dados-pessoais')}>Voltar</Button>
+                    <Button type="button" onClick={() => validateTabAndContinue('plano-tratamento')}>Próximo</Button>
                   </div>
                 </TabsContent>
                 
-                {/* Aba de Plano de Tratamento */}
                 <TabsContent value="plano-tratamento" className="space-y-6 pt-4">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Plano de Tratamento</h3>
-                    
-                    <FormField
-                      control={form.control}
-                      name="plano_tratamento"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Plano de Tratamento Proposto</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              {...field} 
-                              placeholder="Descreva o plano de tratamento proposto para o paciente..."
-                              className="resize-none min-h-[200px]"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
+                  <TreatmentPlanForm control={form.control} />
                   <div className="flex justify-between">
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={() => setActiveTab('historico-saude')}
-                    >
-                      Voltar
-                    </Button>
-                    
-                    <Button 
-                      type="button" 
-                      onClick={validateTabAndContinue}
-                    >
-                      Próximo
-                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setActiveTab('historico-saude')}>Voltar</Button>
+                    <Button type="button" onClick={() => validateTabAndContinue('agendamento-retorno')}>Próximo</Button>
                   </div>
                 </TabsContent>
                 
-                {/* Aba de Agendamento de Retorno */}
                 <TabsContent value="agendamento-retorno" className="space-y-6 pt-4">
-                  {id ? (
-                    <ReturnScheduler 
-                      patientId={id} 
-                      patientName={form.getValues('nome')}
-                      existingReminders={patientReminders}
-                      onReminderCreated={handleReminderCreated}
-                    />
-                  ) : (
-                    <div className="bg-yellow-50 p-4 rounded-md text-yellow-800">
-                      <p>Para agendar um retorno, primeiro salve o formulário do paciente.</p>
-                    </div>
-                  )}
-                  
+                  <ReturnSchedulerTab 
+                    patientId={id}
+                    patientName={form.getValues('nome')}
+                    patientReminders={patientReminders}
+                    onReminderCreated={handleReminderCreated}
+                  />
                   <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4">
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={() => setActiveTab('plano-tratamento')}
-                    >
-                      Voltar
-                    </Button>
-                    
+                    <Button type="button" variant="outline" onClick={() => setActiveTab('plano-tratamento')}>Voltar</Button>
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <Button 
-                        type="submit" 
-                        disabled={saving}
-                      >
-                        {saving ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Salvando...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="mr-2 h-4 w-4" />
-                            Salvar como Rascunho
-                          </>
-                        )}
+                      <Button type="submit" disabled={saving}>
+                        {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</> : <><Save className="mr-2 h-4 w-4" />Salvar como Rascunho</>}
                       </Button>
-                      
-                      <Button 
-                        type="button" 
-                        onClick={() => onSubmit(form.getValues(), true)}
-                        disabled={saving}
-                        variant="secondary"
-                      >
-                        {saving ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Processando...
-                          </>
-                        ) : (
-                          <>
-                            <Share2 className="mr-2 h-4 w-4" />
-                            Salvar e Compartilhar
-                          </>
-                        )}
+                      <Button type="button" onClick={() => onSubmit(form.getValues(), true)} disabled={saving} variant="secondary">
+                        {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processando...</> : <><Share2 className="mr-2 h-4 w-4" />Salvar e Compartilhar</>}
                       </Button>
                     </div>
                   </div>
@@ -1493,44 +648,20 @@ const NewPatientForm = () => {
         )}
       </div>
       
-      {/* Diálogo de compartilhamento */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Compartilhar Formulário</DialogTitle>
-            <DialogDescription>
-              Compartilhe este link com o paciente para que ele possa assinar o formulário.
-            </DialogDescription>
+            <DialogDescription>Compartilhe este link com o paciente para que ele possa assinar o formulário.</DialogDescription>
           </DialogHeader>
-          
           <div className="flex items-center space-x-2 mt-4">
-            <Input 
-              value={shareLink} 
-              readOnly 
-              onClick={(e) => (e.target as HTMLInputElement).select()}
-            />
-            <Button 
-              onClick={copyToClipboardHandler} 
-              variant="secondary"
-              disabled={isCopying}
-            >
-              {isCopying ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Copiar"
-              )}
+            <Input value={shareLink} readOnly onClick={(e) => (e.target as HTMLInputElement).select()} />
+            <Button onClick={copyToClipboardHandler} variant="secondary" disabled={isCopying}>
+              {isCopying ? <Loader2 className="h-4 w-4 animate-spin" /> : "Copiar"}
             </Button>
           </div>
-          
           <DialogFooter className="mt-4">
-            <Button 
-              onClick={() => {
-                setShowShareDialog(false);
-                navigate('/admin/dashboard');
-              }}
-            >
-              Ir para Dashboard
-            </Button>
+            <Button onClick={() => { setShowShareDialog(false); navigate('/admin/dashboard'); }}>Ir para Dashboard</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
