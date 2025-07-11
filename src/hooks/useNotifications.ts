@@ -15,43 +15,38 @@ export function useNotifications() {
       setLoading(true);
       console.log('Carregando notificações...');
 
-      // Carregar lembretes não enviados
-      const { data: reminders, error: remindersError } = await supabase
-        .from('reminders')
-        .select('*')
-        .eq('sent', false)
-        .lte('notify_at', new Date().toISOString())
-        .order('notify_at', { ascending: true });
+      const [remindersResult, birthdaysResult, manualNotifsResult] = await Promise.allSettled([
+        supabase
+          .from('reminders')
+          .select('*')
+          .eq('sent', false)
+          .lte('notify_at', new Date().toISOString())
+          .order('notify_at', { ascending: true }),
+        supabase.rpc('get_upcoming_birthdays', { days_ahead: 1 }),
+        supabase
+          .from('manual_notifications')
+          .select('*')
+          .eq('sent', false)
+          .lte('notify_at', new Date().toISOString())
+          .order('notify_at', { ascending: true })
+      ]);
 
-      if (remindersError) {
-        console.error('Erro ao carregar lembretes:', remindersError);
-        throw remindersError;
+      const reminders = remindersResult.status === 'fulfilled' ? remindersResult.value.data : [];
+      if (remindersResult.status === 'rejected') {
+        console.error('Erro ao carregar lembretes:', remindersResult.reason);
       }
 
-      // Carregar aniversariantes de hoje e amanhã
-      const { data: birthdays, error: birthdaysError } = await supabase
-        .rpc('get_upcoming_birthdays', { days_ahead: 1 });
-
-      if (birthdaysError) {
-        console.error('Erro ao carregar aniversariantes:', birthdaysError);
-        throw birthdaysError;
+      const birthdays = birthdaysResult.status === 'fulfilled' ? birthdaysResult.value.data : [];
+      if (birthdaysResult.status === 'rejected') {
+        console.error('Erro ao carregar aniversariantes:', birthdaysResult.reason);
       }
       
-      // Carregar notificações manuais não enviadas
-      const { data: manualNotifs, error: manualError } = await supabase
-        .from('manual_notifications')
-        .select('*')
-        .eq('sent', false)
-        .lte('notify_at', new Date().toISOString())
-        .order('notify_at', { ascending: true });
-        
-      if (manualError) {
-        console.error('Erro ao carregar notificações manuais:', manualError);
-        throw manualError;
+      const manualNotifs = manualNotifsResult.status === 'fulfilled' ? manualNotifsResult.value.data : [];
+      if (manualNotifsResult.status === 'rejected') {
+        console.error('Erro ao carregar notificações manuais:', manualNotifsResult.reason);
       }
 
-      // Converter aniversariantes para notificações
-      const birthdayNotifications: BirthdayNotification[] = (birthdays || []).map(birthday => ({
+      const birthdayNotifications: BirthdayNotification[] = (birthdays || []).map((birthday: any) => ({
         id: `birthday-${birthday.id}`,
         nome: birthday.nome,
         data_nascimento: birthday.data_nascimento,
@@ -61,8 +56,7 @@ export function useNotifications() {
         virtual: true
       }));
       
-      // Converter notificações manuais para o formato padrão
-      const manualNotifications: ManualNotification[] = (manualNotifs || []).map(notif => ({
+      const manualNotifications: ManualNotification[] = (manualNotifs || []).map((notif: any) => ({
         id: notif.id,
         titulo: notif.titulo,
         mensagem: notif.mensagem,
@@ -73,7 +67,6 @@ export function useNotifications() {
         type: 'manual'
       }));
 
-      // Combinar os três tipos de notificações
       const allNotifications: Notification[] = [
         ...(reminders || []),
         ...birthdayNotifications,
@@ -84,7 +77,7 @@ export function useNotifications() {
       setNotifications(allNotifications);
       setUnreadCount(allNotifications.length);
     } catch (error) {
-      console.error('Erro ao carregar notificações:', error);
+      console.error('Erro geral ao carregar notificações:', error);
       toast.error('Erro ao carregar notificações');
     } finally {
       setLoading(false);
@@ -94,59 +87,34 @@ export function useNotifications() {
   // Carregar notificações ao montar o componente
   useEffect(() => {
     loadNotifications();
-    
-    // Configurar um intervalo para verificar notificações a cada 5 minutos
-    const interval = setInterval(() => {
-      loadNotifications();
-    }, 5 * 60 * 1000);
-    
+    const interval = setInterval(loadNotifications, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [loadNotifications]);
 
   // Marcar um lembrete como enviado
   const markAsSent = async (id: string) => {
     try {
-      // Verificar se é uma notificação virtual (aniversário)
       if (id.startsWith('birthday-')) {
-        // Apenas remover da lista local
         setNotifications(prev => prev.filter(n => n.id !== id));
         setUnreadCount(prev => Math.max(0, prev - 1));
         return true;
       }
       
-      // Verificar se é uma notificação manual
-      const isManualNotification = notifications.some(n => 
-        n.id === id && n.type === 'manual'
-      );
+      const notification = notifications.find(n => n.id === id);
+      const tableName = notification?.type === 'manual' ? 'manual_notifications' : 'reminders';
+
+      const { error } = await supabase
+        .from(tableName)
+        .update({ sent: true })
+        .eq('id', id);
       
-      if (isManualNotification) {
-        // Atualizar no banco de dados (tabela manual_notifications)
-        const { error } = await supabase
-          .from('manual_notifications')
-          .update({ sent: true })
-          .eq('id', id);
-        
-        if (error) {
-          console.error('Erro ao marcar notificação manual como enviada:', error);
-          throw error;
-        }
-      } else {
-        // Atualizar no banco de dados (tabela reminders)
-        const { error } = await supabase
-          .from('reminders')
-          .update({ sent: true })
-          .eq('id', id);
-        
-        if (error) {
-          console.error('Erro ao marcar notificação como enviada:', error);
-          throw error;
-        }
+      if (error) {
+        console.error(`Erro ao marcar ${tableName} como enviada:`, error);
+        throw error;
       }
       
-      // Atualizar estado local
       setNotifications(prev => prev.filter(n => n.id !== id));
       setUnreadCount(prev => Math.max(0, prev - 1));
-      
       return true;
     } catch (error) {
       console.error('Erro ao marcar notificação como enviada:', error);
@@ -169,19 +137,16 @@ export function useNotifications() {
         .replace('{{nome}}', patientName)
         .replace('{{data}}', formatDate(reminder.target_date));
     }
-    
     return `Olá. O retorno de ${patientName} está próximo. Será no dia ${formatDate(reminder.target_date)}. Posso confirmar?`;
   };
   
   // Gerar mensagem para aniversário
   const getBirthdayMessage = (birthday: BirthdayNotification) => {
     const isToday = birthday.dias_ate_aniversario === 0;
-    
     if (isToday) {
       return `Olá! A equipe da Dra. Aymée Frauzino deseja um feliz aniversário para ${birthday.nome}! 🎂🎉 Que seja um dia especial, cheio de alegria e sorrisos! 😊`;
-    } else {
-      return `Olá! Amanhã é o aniversário de ${birthday.nome} e a equipe da Dra. Aymée Frauzino quer enviar nossos votos antecipados de feliz aniversário! 🎂🎉`;
     }
+    return `Olá! Amanhã é o aniversário de ${birthday.nome} e a equipe da Dra. Aymée Frauzino quer enviar nossos votos antecipados de feliz aniversário! 🎂🎉`;
   };
   
   // Criar um novo lembrete de retorno
@@ -203,11 +168,7 @@ export function useNotifications() {
         }])
         .select();
       
-      if (error) {
-        console.error('Erro ao criar lembrete de retorno:', error);
-        throw error;
-      }
-      
+      if (error) throw error;
       return data?.[0] || null;
     } catch (error) {
       console.error('Erro ao criar lembrete de retorno:', error);
@@ -231,16 +192,10 @@ export function useNotifications() {
           mensagem,
           notify_at: notifyAt.toISOString(),
           telefone: telefone || null,
-          sent: false,
-          created_at: new Date().toISOString()
         }])
         .select();
       
-      if (error) {
-        console.error('Erro ao criar notificação manual:', error);
-        throw error;
-      }
-      
+      if (error) throw error;
       return data?.[0] || null;
     } catch (error) {
       console.error('Erro ao criar notificação manual:', error);
@@ -258,11 +213,7 @@ export function useNotifications() {
         .eq('patient_id', patientId)
         .order('target_date', { ascending: false });
       
-      if (error) {
-        console.error('Erro ao carregar lembretes do paciente:', error);
-        throw error;
-      }
-      
+      if (error) throw error;
       return data || [];
     } catch (error) {
       console.error('Erro ao carregar lembretes do paciente:', error);
@@ -274,16 +225,8 @@ export function useNotifications() {
   // Excluir um lembrete
   const deleteReminder = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('reminders')
-        .delete()
-        .eq('id', id);
-      
-      if (error) {
-        console.error('Erro ao excluir lembrete:', error);
-        throw error;
-      }
-      
+      const { error } = await supabase.from('reminders').delete().eq('id', id);
+      if (error) throw error;
       return true;
     } catch (error) {
       console.error('Erro ao excluir lembrete:', error);
@@ -295,16 +238,8 @@ export function useNotifications() {
   // Excluir uma notificação manual
   const deleteManualNotification = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('manual_notifications')
-        .delete()
-        .eq('id', id);
-      
-      if (error) {
-        console.error('Erro ao excluir notificação manual:', error);
-        throw error;
-      }
-      
+      const { error } = await supabase.from('manual_notifications').delete().eq('id', id);
+      if (error) throw error;
       return true;
     } catch (error) {
       console.error('Erro ao excluir notificação manual:', error);
@@ -321,11 +256,7 @@ export function useNotifications() {
         .select('*')
         .order('notify_at', { ascending: false });
       
-      if (error) {
-        console.error('Erro ao carregar notificações manuais:', error);
-        throw error;
-      }
-      
+      if (error) throw error;
       return data || [];
     } catch (error) {
       console.error('Erro ao carregar notificações manuais:', error);

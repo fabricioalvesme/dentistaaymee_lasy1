@@ -33,11 +33,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (error) {
         console.error('Erro ao verificar perfil:', error);
-        return true; // Por padrão, consideramos como admin se houver erro
+        return false; // Princípio de menor privilégio
       }
       
-      // Considerando qualquer usuário como admin por enquanto
-      const userIsAdmin = userData?.role === 'admin' || true;
+      const userIsAdmin = userData?.role === 'admin';
       setIsAdmin(userIsAdmin);
       
       console.log("Verificação de admin realizada:", { 
@@ -49,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return userIsAdmin;
     } catch (error) {
       console.error('Erro ao verificar perfil:', error);
-      return true; // Por padrão, consideramos como admin se houver erro
+      return false; // Princípio de menor privilégio
     }
   };
 
@@ -59,7 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("Inicializando sessão do AuthContext");
         setLoading(true);
         
-        // Buscar sessão inicial
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -68,19 +66,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         
-        // Definir estado com base na sessão recuperada
         setSession(data.session);
         setUser(data.session?.user || null);
 
-        // Verificar se o usuário é admin (se tiver sessão)
         if (data.session?.user) {
           await checkUserRole(data.session.user.id);
-          console.log("Sessão inicial carregada:", { 
-            userId: data.session.user.id,
-            email: data.session.user.email
-          });
         } else {
-          console.log("Nenhuma sessão inicial encontrada");
+          setIsAdmin(false);
         }
       } catch (error) {
         console.error('Erro ao inicializar sessão:', error);
@@ -89,10 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Obter sessão inicial
     getInitialSession();
 
-    // Configurar listener para mudanças no estado de autenticação
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         console.log("Auth state changed:", event, newSession?.user?.id);
@@ -100,19 +90,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(newSession);
         setUser(newSession?.user || null);
 
-        // Verificar se o usuário é admin (se tiver sessão)
         if (newSession?.user) {
           await checkUserRole(newSession.user.id);
         } else {
           setIsAdmin(false);
         }
         
-        // Garantir que loading seja false após qualquer mudança de estado
         setLoading(false);
       }
     );
 
-    // Limpar listener ao desmontar
     return () => {
       console.log("Removendo listener de auth");
       authListener.subscription.unsubscribe();
@@ -122,8 +109,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
-      console.log("Tentando fazer login com:", email);
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -132,23 +117,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) {
         console.error('Erro no login:', error);
         toast.error(error.message || 'Falha ao fazer login');
-        setLoading(false);
         return;
       }
       
-      console.log("Login bem-sucedido:", data.user?.id);
-      
-      // Verificar se é admin
       if (data.user) {
         await checkUserRole(data.user.id);
       }
       
-      // Os estados serão atualizados pelo listener onAuthStateChange
       toast.success('Login realizado com sucesso!');
       navigate('/admin/dashboard');
     } catch (error: any) {
       console.error('Erro ao fazer login:', error);
       toast.error(error.message || 'Falha ao fazer login');
+    } finally {
       setLoading(false);
     }
   };
@@ -156,24 +137,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       setLoading(true);
-      console.log("Tentando fazer logout");
-      
       const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Erro ao fazer logout no Supabase:', error);
         toast.error('Falha ao fazer logout');
-        setLoading(false);
         throw error;
       }
       
-      // Estados serão atualizados pelo listener onAuthStateChange
-      console.log("Logout bem-sucedido");
       navigate('/');
       toast.success('Logout realizado com sucesso');
     } catch (error: any) {
       console.error('Erro ao fazer logout:', error);
       toast.error('Falha ao fazer logout');
+    } finally {
       setLoading(false);
     }
   };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase, Appointment } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 import { AppointmentFormValues } from '@/components/appointments/EventForm';
@@ -10,13 +10,7 @@ export function useAppointments() {
   const [saving, setSaving] = useState(false);
 
   // Carregar consultas
-  useEffect(() => {
-    console.log("Inicializando useAppointments hook");
-    loadAppointments();
-  }, []);
-
-  // Carregar consultas
-  const loadAppointments = async () => {
+  const loadAppointments = useCallback(async () => {
     try {
       setLoading(true);
       console.log("Carregando lista de compromissos...");
@@ -41,7 +35,13 @@ export function useAppointments() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Carregar consultas ao montar
+  useEffect(() => {
+    console.log("Inicializando useAppointments hook");
+    loadAppointments();
+  }, [loadAppointments]);
 
   // Próximos eventos
   const getUpcomingEvents = () => {
@@ -79,7 +79,6 @@ export function useAppointments() {
       setSaving(true);
       console.log("Salvando compromisso:", { data, isEditing: !!selectedEvent });
       
-      // Converter para ISO string
       const startDate = new Date(data.data);
       const endDate = new Date(data.data);
       
@@ -101,25 +100,19 @@ export function useAppointments() {
         data_hora_inicio: startDate.toISOString(),
         data_hora_fim: endDate.toISOString(),
         patient_id: data.patient_id || null,
-        cor: data.cor || '#3B82F6', // Cor padrão se não definida
+        cor: data.cor || '#3B82F6',
       };
       
       let result;
       
       if (selectedEvent && selectedEvent.id) {
-        // Atualizar evento existente
         console.log("Atualizando evento existente:", selectedEvent.id);
-        console.log("Dados para atualização:", appointmentData);
-        
         result = await supabase
           .from('appointments')
           .update(appointmentData)
           .eq('id', selectedEvent.id)
           .select();
-          
-        console.log("Resultado da atualização:", result);
       } else {
-        // Criar novo evento
         console.log("Criando novo evento");
         result = await supabase
           .from('appointments')
@@ -136,7 +129,6 @@ export function useAppointments() {
       console.log("Evento salvo com sucesso:", result.data);
       toast.success(selectedEvent ? 'Evento atualizado com sucesso' : 'Evento criado com sucesso');
       
-      // Recarregar a lista de compromissos após salvar
       await loadAppointments();
       return true;
     } catch (error: any) {
@@ -168,7 +160,6 @@ export function useAppointments() {
       console.log("Evento excluído com sucesso");
       toast.success('Evento excluído com sucesso');
       
-      // Atualizar o estado local para refletir a exclusão
       setAppointments(prev => prev.filter(a => a.id !== event.id));
       return true;
     } catch (error: any) {
