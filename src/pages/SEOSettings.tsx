@@ -127,6 +127,8 @@ const SEOSettings = () => {
         primary_color: data.primary_color,
         secondary_color: data.secondary_color,
         accent_color: data.accent_color,
+        // Adicionando explicitamente o campo updated_at com o valor atual
+        updated_at: new Date().toISOString()
       };
       
       let result;
@@ -149,7 +151,10 @@ const SEOSettings = () => {
         console.log("Criando novas configurações");
         result = await supabase
           .from('settings')
-          .insert([formattedData])
+          .insert([{
+            ...formattedData,
+            created_at: new Date().toISOString() // Garantir que created_at também existe
+          }])
           .select();
           
         if (result.error) {
@@ -437,7 +442,6 @@ const SEOSettings = () => {
                 type="submit" 
                 disabled={saving} 
                 className="w-full md:w-auto"
-                onClick={() => console.log("Botão Salvar clicado:", form.getValues())}
               >
                 {saving ? (
                   <>
