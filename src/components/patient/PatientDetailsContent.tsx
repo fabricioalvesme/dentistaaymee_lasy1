@@ -26,7 +26,6 @@ interface PatientDetailsContentProps {
   treatment?: Treatment | null;
   onShare?: (id: string) => void;
   onExport?: (id: string) => void;
-  onClose?: () => void;
 }
 
 export function PatientDetailsContent({
@@ -35,7 +34,6 @@ export function PatientDetailsContent({
   treatment,
   onShare,
   onExport,
-  onClose
 }: PatientDetailsContentProps) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('info');
@@ -263,7 +261,6 @@ export function PatientDetailsContent({
         <Button 
           variant="outline" 
           onClick={() => {
-            if (onClose) onClose();
             navigate(`/admin/forms/edit/${patient.id}`);
           }}
         >

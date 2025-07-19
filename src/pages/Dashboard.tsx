@@ -40,7 +40,6 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { PatientFormPDF } from '@/components/exports/PatientFormPDF';
 import { UpcomingRemindersCard } from '@/components/dashboard/UpcomingRemindersCard';
-import { PatientDetailsContent } from '@/components/patient/PatientDetailsContent';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -48,7 +47,6 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [periodFilter, setPeriodFilter] = useState('all');
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientDetails, setPatientDetails] = useState<{
@@ -125,7 +123,7 @@ const Dashboard = () => {
     patient.nome_responsavel.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const loadPatientDetails = async (patientId: string) => {
+  const loadPatientDetailsForModal = async (patientId: string) => {
     try {
       setLoadingDetails(true);
       const [healthHistoryResult, treatmentResult] = await Promise.allSettled([
@@ -150,16 +148,10 @@ const Dashboard = () => {
     setShowShareDialog(true);
   };
 
-  const handleViewDetails = async (patient: Patient) => {
-    setSelectedPatient(patient);
-    setShowDetailsDialog(true);
-    await loadPatientDetails(patient.id);
-  };
-
   const handleExport = async (patient: Patient) => {
     setSelectedPatient(patient);
     setShowExportDialog(true);
-    await loadPatientDetails(patient.id);
+    await loadPatientDetailsForModal(patient.id);
   };
 
   const handleDelete = async (patientId: string) => {
@@ -251,7 +243,7 @@ const Dashboard = () => {
         ) : filteredPatients.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredPatients.map((patient) => (
-              <PatientFormCard key={patient.id} patient={patient} onShare={() => handleShare(patient)} onViewDetails={() => handleViewDetails(patient)} onExport={() => handleExport(patient)} onDelete={() => handleDelete(patient.id)} isDeleting={isDeleting} />
+              <PatientFormCard key={patient.id} patient={patient} onShare={() => handleShare(patient)} onExport={() => handleExport(patient)} onDelete={() => handleDelete(patient.id)} isDeleting={isDeleting} />
             ))}
           </div>
         ) : (
@@ -268,26 +260,6 @@ const Dashboard = () => {
           </div>
           <p className="text-sm text-gray-500 mt-2">Formulário para: <span className="font-medium">{selectedPatient?.nome}</span></p>
           <DialogFooter className="mt-4"><Button onClick={() => setShowShareDialog(false)}>Fechar</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Detalhes do Paciente</DialogTitle></DialogHeader>
-          {loadingDetails ? (
-            <div className="flex justify-center items-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-          ) : selectedPatient ? (
-            <PatientDetailsContent 
-              patient={selectedPatient}
-              healthHistory={patientDetails.healthHistory}
-              treatment={patientDetails.treatment}
-              onShare={() => { setShowDetailsDialog(false); handleShare(selectedPatient); }}
-              onExport={() => { setShowDetailsDialog(false); handleExport(selectedPatient); }}
-              onClose={() => setShowDetailsDialog(false)}
-            />
-          ) : (
-            <div className="py-6 text-center"><p className="text-gray-500">Paciente não encontrado.</p></div>
-          )}
         </DialogContent>
       </Dialog>
       

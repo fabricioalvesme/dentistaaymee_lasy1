@@ -18,6 +18,7 @@ import PublicForm from "./pages/PublicForm";
 import AppointmentCalendar from "./pages/AppointmentCalendar";
 import SEOSettings from "./pages/SEOSettings";
 import Notifications from "./pages/Notifications";
+import PatientDetails from "./pages/PatientDetails";
 import NotFound from "./pages/NotFound";
 import ConfigurationError from "./pages/ConfigurationError";
 
@@ -56,6 +57,14 @@ const App = () => {
                     element={
                       <ProtectedRoute>
                         <Dashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin/patient/:id" 
+                    element={
+                      <ProtectedRoute>
+                        <PatientDetails />
                       </ProtectedRoute>
                     } 
                   />

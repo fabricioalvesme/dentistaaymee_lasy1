@@ -20,7 +20,6 @@ import {
 interface PatientFormCardProps {
   patient: Patient;
   onShare: () => void;
-  onViewDetails: () => void;
   onExport: () => void;
   onDelete: () => void;
   isDeleting: boolean;
@@ -29,7 +28,6 @@ interface PatientFormCardProps {
 export function PatientFormCard({ 
   patient, 
   onShare, 
-  onViewDetails, 
   onExport,
   onDelete,
   isDeleting
@@ -72,7 +70,11 @@ export function PatientFormCard({
       
       <CardFooter className="flex flex-wrap gap-2 pt-4 border-t mt-auto">
         <div className="grid grid-cols-3 gap-1 w-full">
-          <Button variant="ghost" size="sm" onClick={onViewDetails}><Eye className="h-4 w-4 mr-1" />Ver</Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to={`/admin/patient/${patient.id}`}>
+              <Eye className="h-4 w-4 mr-1" />Ver
+            </Link>
+          </Button>
           <Button variant="ghost" size="sm" asChild><Link to={`/admin/forms/edit/${patient.id}`}><Pencil className="h-4 w-4 mr-1" />Editar</Link></Button>
           <Button variant="ghost" size="sm" onClick={onExport}><FileText className="h-4 w-4 mr-1" />Exportar</Button>
           <Button variant="ghost" size="sm" onClick={onShare}><Share2 className="h-4 w-4 mr-1" />Link</Button>
