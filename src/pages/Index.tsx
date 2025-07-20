@@ -16,7 +16,8 @@ import {
   Sun,
   MessageCircle,
   Activity,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 
 // Componente SVG personalizado para o ícone de dente
@@ -41,7 +42,7 @@ const ToothIcon = () => (
 );
 
 const Index = () => {
-  const { settings, loading } = useTheme();
+  const { settings, loading, error } = useTheme();
 
   // Para garantir que o scroll para as seções funcione
   useEffect(() => {
@@ -132,6 +133,24 @@ const Index = () => {
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
           <span className="text-lg font-medium">Carregando...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 p-4">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-800">Ocorreu um erro</h1>
+          <p className="text-gray-600 mt-2">{error}</p>
+          <p className="text-gray-500 mt-4 text-sm">
+            Por favor, tente recarregar a página. Se o problema persistir, verifique sua conexão ou contate o suporte.
+          </p>
+          <Button onClick={() => window.location.reload()} className="mt-6">
+            Recarregar Página
+          </Button>
         </div>
       </div>
     );

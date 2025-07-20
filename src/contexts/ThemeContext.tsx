@@ -2,10 +2,12 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase, supabaseError } from '@/lib/supabaseClient';
 import type { Settings } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
+import { withTimeout } from '@/lib/utils';
 
 interface ThemeContextType {
   settings: Partial<Settings> | null;
   loading: boolean;
+  error: string | null;
   updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
 }
 
@@ -23,38 +25,51 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Partial<Settings> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // Carregar configurações do Supabase - executado apenas uma vez
   useEffect(() => {
     async function loadSettings() {
-      if (dataLoaded || supabaseError) {
+      if (dataLoaded) return;
+
+      if (supabaseError) {
+        console.error("ThemeContext - Erro de inicialização do Supabase:", supabaseError);
+        setError(supabaseError);
         setSettings(defaultSettings);
         setLoading(false);
+        setDataLoaded(true);
         return;
       }
       
       try {
-        console.log("ThemeContext - Carregando configurações iniciais");
+        console.log("ThemeContext - Carregando configurações iniciais com timeout de 10s");
         setLoading(true);
+        setError(null);
         
-        const { data, error } = await supabase
+        const settingsPromise = supabase
           .from('settings')
           .select('*')
           .limit(1)
           .single();
 
-        if (error && error.code !== 'PGRST116') {
-          console.error('Erro ao carregar configurações (ThemeContext):', error);
-          setSettings(defaultSettings);
-        } else {
-          console.log("ThemeContext - Configurações carregadas:", data);
-          setSettings(data || defaultSettings);
+        const { data, error: queryError } = await withTimeout(settingsPromise, 10000);
+
+        if (queryError && queryError.code !== 'PGRST116') {
+          console.error('Erro ao carregar configurações (ThemeContext):', queryError);
+          throw queryError;
         }
         
+        console.log("ThemeContext - Configurações carregadas:", data);
+        setSettings(data || defaultSettings);
         setDataLoaded(true);
-      } catch (error) {
-        console.error('Erro geral ao carregar configurações (ThemeContext):', error);
+      } catch (err: any) {
+        console.error('Erro geral ao carregar configurações (ThemeContext):', err);
+        if (err.message === 'Request timed out') {
+          setError('A conexão com o servidor demorou muito para responder. Verifique sua conexão com a internet.');
+        } else {
+          setError('Não foi possível carregar as configurações do site.');
+        }
         setSettings(defaultSettings);
       } finally {
         setLoading(false);
@@ -141,7 +156,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ settings, loading, updateSettings }}>
+    <ThemeContext.Provider value={{ settings, loading, error, updateSettings }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -160,3 +160,17 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     return false;
   }
 }
+
+export function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  timeoutError = new Error('Request timed out')
+): Promise<T> {
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(timeoutError);
+    }, ms);
+  });
+
+  return Promise.race([promise, timeout]);
+}
