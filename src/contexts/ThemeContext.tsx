@@ -65,12 +65,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setDataLoaded(true);
       } catch (err: any) {
         console.error('Erro geral ao carregar configurações (ThemeContext):', err);
+        
         if (err.message === 'Request timed out') {
-          setError('A conexão com o servidor demorou muito para responder. Verifique sua conexão com a internet.');
+          toast.warning('A conexão demorou para responder. Usando tema padrão.');
         } else {
-          setError('Não foi possível carregar as configurações do site.');
+          toast.error('Não foi possível carregar as configurações do site. Usando tema padrão.');
         }
+        
+        // Fallback para configurações padrão sem bloquear a UI
         setSettings(defaultSettings);
+        // Não definimos o erro global para evitar a tela de erro
       } finally {
         setLoading(false);
       }
