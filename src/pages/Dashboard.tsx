@@ -40,6 +40,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { PatientFormPDF } from '@/components/exports/PatientFormPDF';
 import { UpcomingRemindersCard } from '@/components/dashboard/UpcomingRemindersCard';
+import { useAuthErrorHandler } from '@/hooks/useAuthErrorHandler';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -64,10 +65,11 @@ const Dashboard = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { settings } = useTheme();
+  const { handleSupabaseError } = useAuthErrorHandler();
   
   const navigate = useNavigate();
 
-  // OTIMIZADO: Fetch com cache e carregamento mais eficiente
+  // OTIMIZADO: Fetch com tratamento de erros de autenticação
   const fetchPatients = useCallback(async () => {
     try {
       setLoading(true);
@@ -98,6 +100,11 @@ const Dashboard = () => {
       
       if (error) {
         console.error('Erro ao carregar pacientes:', error);
+        
+        // Verificar se é erro de autenticação
+        const isAuthError = await handleSupabaseError(error);
+        if (isAuthError) return; // Sessão foi renovada ou redirecionou
+        
         setError('Erro ao carregar dados dos pacientes. Tente novamente.');
         throw error;
       }
@@ -115,11 +122,13 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error('Erro ao carregar pacientes:', error);
-      toast.error('Erro ao carregar dados dos pacientes');
+      if (!error.message?.includes('JWT expired')) {
+        toast.error('Erro ao carregar dados dos pacientes');
+      }
     } finally {
       setLoading(false);
     }
-  }, [periodFilter]);
+  }, [periodFilter, handleSupabaseError]);
 
   useEffect(() => {
     fetchPatients();
@@ -150,7 +159,10 @@ const Dashboard = () => {
       setPatientDetails({ healthHistory, treatment });
     } catch (error) {
       console.error('Erro ao carregar detalhes do paciente:', error);
-      toast.error('Erro ao carregar detalhes do paciente');
+      const isAuthError = await handleSupabaseError(error);
+      if (!isAuthError) {
+        toast.error('Erro ao carregar detalhes do paciente');
+      }
     } finally {
       setLoadingDetails(false);
     }
@@ -185,7 +197,11 @@ const Dashboard = () => {
       await Promise.allSettled(deleteOperations);
 
       const { error } = await supabase.from('patients').delete().eq('id', patientId);
-      if (error) throw error;
+      if (error) {
+        const isAuthError = await handleSupabaseError(error);
+        if (isAuthError) return;
+        throw error;
+      }
 
       toast.success('Paciente e todos os seus dados foram excluídos com sucesso.');
       await fetchPatients(); // Recarrega a lista

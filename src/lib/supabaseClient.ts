@@ -17,7 +17,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        flowType: 'pkce',
+        storage: window.localStorage,
+        storageKey: 'supabase.auth.token',
+        debug: false
       },
       global: {
         headers: { 'x-application-name': 'dra-aymee-app' },

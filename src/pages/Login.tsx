@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabaseClient';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +16,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const loginSchema = z.object({
@@ -28,9 +27,14 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const Login = () => {
-  const { signIn } = useAuth();
+  const { signIn, user, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Verificar se chegou aqui por sessão expirada
+  const sessionExpired = location.state?.sessionExpired;
+  const from = location.state?.from || '/admin/dashboard';
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -40,32 +44,47 @@ const Login = () => {
     },
   });
 
+  // Redirecionar se já estiver logado
+  useEffect(() => {
+    if (user && !loading) {
+      console.log("Usuário já logado, redirecionando para:", from);
+      navigate(from, { replace: true });
+    }
+  }, [user, loading, navigate, from]);
+
+  // Mostrar mensagem de sessão expirada
+  useEffect(() => {
+    if (sessionExpired) {
+      toast.error('Sua sessão expirou. Faça login novamente para continuar.');
+    }
+  }, [sessionExpired]);
+
   const onSubmit = async (data: LoginFormValues) => {
     try {
       setIsLoading(true);
       console.log("Tentando fazer login com:", data.email);
       
-      // Tentativa de login
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
+      await signIn(data.email, data.password);
       
-      if (error) {
-        console.error("Erro na autenticação:", error);
-        throw error;
-      }
-      
-      console.log("Login bem-sucedido, usuário:", authData.user?.id);
-      
-      toast.success('Login realizado com sucesso!');
-      navigate('/admin/dashboard');
+      // O redirecionamento é feito no AuthContext após login bem-sucedido
     } catch (error: any) {
       console.error('Erro ao fazer login:', error);
-      toast.error(error.message || 'Falha ao fazer login');
+      // O erro já é tratado no AuthContext
       setIsLoading(false);
     }
   };
+
+  // Se já estiver logado, mostrar loading
+  if (user && !loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+          <span className="text-lg font-medium">Redirecionando...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -80,6 +99,18 @@ const Login = () => {
             <p className="text-gray-600 mt-2">
               Faça login para acessar o painel administrativo
             </p>
+            
+            {/* Alerta de sessão expirada */}
+            {sessionExpired && (
+              <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                <div className="flex items-center">
+                  <AlertTriangle className="h-5 w-5 text-orange-500 mr-2" />
+                  <span className="text-sm text-orange-700">
+                    Sua sessão expirou por segurança
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           <Form {...form}>
@@ -120,8 +151,8 @@ const Login = () => {
                 )}
               />
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
+              <Button type="submit" className="w-full" disabled={isLoading || loading}>
+                {isLoading || loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Entrando...
