@@ -182,6 +182,7 @@ const NewPatientForm = () => {
   const [isCopying, setIsCopying] = useState(false);
   const [patientReminders, setPatientReminders] = useState<Reminder[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
   
   const { getPatientReminders } = useNotifications();
   
@@ -275,9 +276,11 @@ const NewPatientForm = () => {
     }
   };
 
-  // Carregar dados do paciente se estiver editando - OTIMIZADO
+  // CORRIGIDO: Carregamento simplificado e com timeout
   useEffect(() => {
-    if (!id) return;
+    if (!id || dataLoaded) return;
+
+    let timeoutId: NodeJS.Timeout;
 
     async function loadPatient() {
       try {
@@ -286,29 +289,46 @@ const NewPatientForm = () => {
         
         console.log('Carregando dados do paciente:', id);
         
-        // Carregar dados em paralelo para melhor performance
-        const [patientResult, healthHistoryResult, treatmentResult] = await Promise.allSettled([
-          supabase.from('patients').select('*').eq('id', id).single(),
+        // Timeout de segurança para evitar loading infinito
+        timeoutId = setTimeout(() => {
+          setLoading(false);
+          setLoadError('Timeout ao carregar dados. Tente novamente.');
+          toast.error('Timeout ao carregar dados. Tente novamente.');
+        }, 10000); // 10 segundos
+        
+        // Carregar dados do paciente primeiro
+        const { data: patient, error: patientError } = await supabase
+          .from('patients')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (patientError || !patient) {
+          clearTimeout(timeoutId);
+          setLoadError('Paciente não encontrado.');
+          toast.error('Paciente não encontrado.');
+          setLoading(false);
+          return;
+        }
+        
+        // Carregar dados relacionados em paralelo
+        const [healthHistoryResult, treatmentResult] = await Promise.allSettled([
           supabase.from('health_histories').select('*').eq('patient_id', id).single(),
           supabase.from('treatments').select('*').eq('patient_id', id).single()
         ]);
         
-        // Verificar se o paciente existe
-        if (patientResult.status === 'rejected' || !patientResult.value.data) {
-          setLoadError('Paciente não encontrado.');
-          toast.error('Paciente não encontrado.');
-          return;
-        }
-        
-        const patient = patientResult.value.data;
         const healthHistory = healthHistoryResult.status === 'fulfilled' ? healthHistoryResult.value.data : null;
         const treatment = treatmentResult.status === 'fulfilled' ? treatmentResult.value.data : null;
         
-        // Carregar lembretes em paralelo
-        loadPatientReminders(id);
+        // Carregar lembretes (não bloquear se falhar)
+        try {
+          await loadPatientReminders(id);
+        } catch (error) {
+          console.warn('Erro ao carregar lembretes (não crítico):', error);
+        }
         
         // Resetar formulário com dados carregados
-        form.reset({
+        const formData = {
           nome: patient.nome || '',
           data_nascimento: patient.data_nascimento || '',
           endereco: patient.endereco || '',
@@ -415,10 +435,15 @@ const NewPatientForm = () => {
           internacoes_recentes: healthHistory?.internacoes_recentes || '',
           peso_atual: healthHistory?.peso_atual || '',
           plano_tratamento: treatment?.plano_tratamento || '',
-        });
+        };
         
+        form.reset(formData);
+        
+        clearTimeout(timeoutId);
+        setDataLoaded(true);
         console.log('Dados carregados com sucesso para:', patient.nome);
       } catch (error) {
+        clearTimeout(timeoutId);
         console.error('Erro ao carregar dados do formulário:', error);
         setLoadError('Erro ao carregar dados do formulário.');
         toast.error('Erro ao carregar dados do formulário.');
@@ -428,7 +453,14 @@ const NewPatientForm = () => {
     }
     
     loadPatient();
-  }, [id, form, getPatientReminders]);
+
+    // Cleanup function
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [id, dataLoaded]); // Dependências simplificadas
 
   // Função para validar a aba atual e passar para a próxima
   const validateTabAndContinue = async (nextTab: string) => {
@@ -447,7 +479,7 @@ const NewPatientForm = () => {
     }
   };
 
-  // Função para salvar o formulário - OTIMIZADA
+  // Função para salvar o formulário
   const onSubmit = async (data: PatientFormValues, share: boolean = false) => {
     try {
       setSaving(true);
@@ -602,7 +634,18 @@ const NewPatientForm = () => {
         ) : loadError ? (
           <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
             <p className="font-medium">{loadError}</p>
-            <Button variant="outline" onClick={() => window.location.reload()} className="mt-2">Tentar novamente</Button>
+            <div className="flex gap-2 mt-3">
+              <Button variant="outline" onClick={() => {
+                setLoadError(null);
+                setDataLoaded(false);
+                setLoading(false);
+              }}>
+                Tentar novamente
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
+                Voltar ao Dashboard
+              </Button>
+            </div>
           </div>
         ) : (
           <Form {...form}>
