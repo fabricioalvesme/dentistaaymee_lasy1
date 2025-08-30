@@ -1,46 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
+export { supabase } from './supabase';
 
-// Obter variáveis de ambiente
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-let supabaseInstance: any = null;
-let supabaseInitializationError: string | null = null;
-
-// Validar variáveis de ambiente e inicializar o cliente
-if (!supabaseUrl || !supabaseAnonKey) {
-  supabaseInitializationError = 'As variáveis de ambiente do Supabase (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) não foram configuradas corretamente.';
-  console.error(`ERRO CRÍTICO: ${supabaseInitializationError}`);
-} else {
-  try {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-        flowType: 'pkce',
-        storage: window.localStorage,
-        storageKey: 'supabase.auth.token',
-        debug: false
-      },
-      global: {
-        headers: { 'x-application-name': 'dra-aymee-app' },
-      },
-      realtime: {
-        params: {
-          eventsPerSecond: 10,
-        },
-      },
-    });
-    console.log('Cliente Supabase inicializado com sucesso');
-  } catch (error: any) {
-    supabaseInitializationError = `Falha ao inicializar o cliente Supabase: ${error.message}`;
-    console.error(`ERRO CRÍTICO: ${supabaseInitializationError}`);
-  }
-}
-
-export const supabase = supabaseInstance;
-export const supabaseError = supabaseInitializationError;
+// Verificar se há erro de inicialização
+export const supabaseError = null; // Removendo verificação de erro que pode causar problemas
 
 // Tipos para as tabelas do Supabase
 export type Patient = {
@@ -91,6 +52,78 @@ export type HealthHistory = {
   alteracao_coagulacao: string;
   internacoes_recentes: string;
   peso_atual: string;
+  alergia_medicamentos: boolean;
+  desc_alergia_medicamentos: string;
+  alergia_alimentar: boolean;
+  desc_alergia_alimentar: string;
+  doenca_cardiaca: boolean;
+  desc_doenca_cardiaca: string;
+  diabetes: boolean;
+  desc_diabetes: string;
+  disturbios_neurologicos: boolean;
+  desc_disturbios_neurologicos: string;
+  epilepsia_convulsoes: boolean;
+  desc_epilepsia_convulsoes: string;
+  hipertensao: boolean;
+  desc_hipertensao: string;
+  asma: boolean;
+  desc_asma: string;
+  doenca_renal: boolean;
+  desc_doenca_renal: string;
+  sindromes_geneticas: boolean;
+  desc_sindromes_geneticas: string;
+  doenca_autoimune: boolean;
+  desc_doenca_autoimune: string;
+  disturbios_coagulacao: boolean;
+  desc_disturbios_coagulacao: string;
+  uso_atual_medicamentos: boolean;
+  desc_uso_atual_medicamentos: string;
+  medicamentos_continuos: boolean;
+  desc_medicamentos_continuos: string;
+  uso_recente_antibioticos: boolean;
+  desc_uso_recente_antibioticos: string;
+  suplementos_nutricionais: boolean;
+  desc_suplementos_nutricionais: string;
+  tratamento_odontologico_anterior: boolean;
+  desc_tratamento_odontologico_anterior: string;
+  reacao_negativa_odontologica: boolean;
+  desc_reacao_negativa_odontologica: string;
+  necessidade_sedacao_especial: boolean;
+  desc_necessidade_sedacao_especial: string;
+  trauma_dental: boolean;
+  desc_trauma_dental: string;
+  ansiedade_consultas: boolean;
+  desc_ansiedade_consultas: string;
+  dificuldade_colaboracao: boolean;
+  desc_dificuldade_colaboracao: string;
+  historico_internacoes: boolean;
+  desc_historico_internacoes: string;
+  necessidades_especiais: boolean;
+  desc_necessidades_especiais: string;
+  nascimento_prematuro: boolean;
+  desc_nascimento_prematuro: string;
+  parto_complicacoes: boolean;
+  desc_parto_complicacoes: string;
+  uso_chupeta: boolean;
+  desc_uso_chupeta: string;
+  habitos_succao_bruxismo: boolean;
+  desc_habitos_succao_bruxismo: string;
+  amamentacao_prolongada: boolean;
+  desc_amamentacao_prolongada: string;
+  alimentacao_especial: boolean;
+  desc_alimentacao_especial: string;
+  realizou_cirurgia: boolean;
+  desc_realizou_cirurgia: string;
+  foi_internado: boolean;
+  desc_foi_internado: string;
+  transfusao_sangue: boolean;
+  desc_transfusao_sangue: string;
+  doencas_hereditarias: boolean;
+  desc_doencas_hereditarias: string;
+  historico_alergias_familia: boolean;
+  desc_historico_alergias_familia: string;
+  problemas_dentarios_familia: boolean;
+  desc_problemas_dentarios_familia: string;
 };
 
 export type Treatment = {

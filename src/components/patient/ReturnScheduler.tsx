@@ -64,22 +64,22 @@ export function ReturnScheduler({
     defaultValues: {
       returnDate: new Date(new Date().setDate(new Date().getDate() + 30)), // 30 dias à frente
       notifyTime: '09:00',
-      // CORRIGIDO: Usar patientName em vez de variável nome não definida
+      // CORRIGIDO: Usar patientName em vez de variável data não definida
       message: `Olá. O retorno de ${patientName} está próximo. Será no dia {{data}}. Posso confirmar?`,
     },
   });
   
   // Enviar formulário de agendamento de retorno
-  const onSubmit = async (data: ReturnFormValues) => {
+  const onSubmit = async (formData: ReturnFormValues) => {
     try {
       setLoading(true);
       
       // Criar data de notificação (o dia anterior à data de retorno, às 10h)
-      const notifyDate = new Date(data.returnDate);
+      const notifyDate = new Date(formData.returnDate);
       notifyDate.setDate(notifyDate.getDate() - 1);
       
       // Extrair hora e minuto do horário de notificação
-      const [hours, minutes] = data.notifyTime.split(':').map(Number);
+      const [hours, minutes] = formData.notifyTime.split(':').map(Number);
       notifyDate.setHours(hours, minutes, 0, 0);
       
       // Verificar se a data de notificação já passou
@@ -90,9 +90,9 @@ export function ReturnScheduler({
       
       const reminder = await createReturnReminder(
         patientId,
-        data.returnDate,
+        formData.returnDate,
         notifyDate,
-        data.message
+        formData.message
       );
       
       if (reminder) {
@@ -100,7 +100,7 @@ export function ReturnScheduler({
         form.reset({
           returnDate: new Date(new Date().setDate(new Date().getDate() + 30)),
           notifyTime: '09:00',
-          // CORRIGIDO: Usar patientName em vez de variável nome não definida
+          // CORRIGIDO: Usar patientName em vez de variável data não definida
           message: `Olá. O retorno de ${patientName} está próximo. Será no dia {{data}}. Posso confirmar?`,
         });
         
