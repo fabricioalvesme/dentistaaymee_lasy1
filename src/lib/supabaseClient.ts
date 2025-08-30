@@ -95,6 +95,15 @@ export type Treatment = {
   plano_tratamento: string;
 };
 
+export type TreatmentRecord = {
+  id: string;
+  patient_id: string;
+  data_realizacao: string;
+  descricao_procedimento: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type TreatmentHistory = {
   id: string;
   patient_id: string;

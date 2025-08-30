@@ -616,7 +616,11 @@ const NewPatientForm = () => {
                 </TabsContent>
                 
                 <TabsContent value="plano-tratamento" className="space-y-6 pt-4">
-                  <TreatmentPlanForm control={form.control} />
+                  <TreatmentPlanForm 
+                    control={form.control} 
+                    patientId={id}
+                    patientName={form.getValues('nome')}
+                  />
                   <div className="flex justify-between">
                     <Button type="button" variant="outline" onClick={() => setActiveTab('historico-saude')}>Voltar</Button>
                     <Button type="button" onClick={() => validateTabAndContinue('agendamento-retorno')}>Próximo</Button>

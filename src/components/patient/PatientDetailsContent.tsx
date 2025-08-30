@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
@@ -7,18 +7,26 @@ import {
   TabsTrigger, 
   TabsContent 
 } from '@/components/ui/tabs';
-import { Patient, HealthHistory, Treatment } from '@/lib/supabaseClient';
+import { Patient, HealthHistory, Treatment, TreatmentRecord, supabase } from '@/lib/supabaseClient';
 import { formatDate, getAge } from '@/lib/utils';
 import { PatientRemindersSection } from './PatientRemindersSection';
 import { ReturnScheduler } from './ReturnScheduler';
 import { Reminder } from '@/lib/types/reminder';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Calendar, FileText, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface PatientDetailsContentProps {
   patient: Patient;
@@ -38,10 +46,44 @@ export function PatientDetailsContent({
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('info');
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [treatmentRecords, setTreatmentRecords] = useState<TreatmentRecord[]>([]);
+  const [loadingRecords, setLoadingRecords] = useState(false);
   
   const handleReminderCreated = (reminder: Reminder) => {
     setReminders(prev => [...prev, reminder]);
   };
+
+  // Carregar registros de tratamentos realizados
+  const loadTreatmentRecords = async () => {
+    try {
+      setLoadingRecords(true);
+      console.log('Carregando registros de tratamento para paciente:', patient.id);
+
+      const { data, error } = await supabase
+        .from('treatment_records')
+        .select('*')
+        .eq('patient_id', patient.id)
+        .order('data_realizacao', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao carregar registros:', error);
+        throw error;
+      }
+
+      console.log('Registros carregados:', data?.length || 0);
+      setTreatmentRecords(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar registros de tratamento:', error);
+    } finally {
+      setLoadingRecords(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'treatment') {
+      loadTreatmentRecords();
+    }
+  }, [activeTab, patient.id]);
   
   return (
     <div className="space-y-6">
@@ -219,18 +261,64 @@ export function PatientDetailsContent({
         </TabsContent>
         
         <TabsContent value="treatment">
-          {treatment && treatment.plano_tratamento ? (
-            <div className="space-y-4">
-              <h3 className="font-medium border-b pb-1 mb-2">Plano de Tratamento</h3>
-              <div className="whitespace-pre-line bg-gray-50 p-4 rounded-md">
-                {treatment.plano_tratamento}
-              </div>
+          <div className="space-y-6">
+            {/* Plano de Tratamento Proposto */}
+            <div>
+              <h3 className="font-medium border-b pb-1 mb-2">Plano de Tratamento Proposto</h3>
+              {treatment && treatment.plano_tratamento ? (
+                <div className="whitespace-pre-line bg-gray-50 p-4 rounded-md">
+                  {treatment.plano_tratamento}
+                </div>
+              ) : (
+                <p className="text-gray-500 py-4">Nenhum plano de tratamento proposto cadastrado.</p>
+              )}
             </div>
-          ) : (
-            <div className="py-6 text-center">
-              <p className="text-gray-500">Nenhum plano de tratamento cadastrado para este paciente.</p>
+
+            {/* Tratamentos Realizados */}
+            <div>
+              <h3 className="font-medium border-b pb-1 mb-2">Tratamentos Realizados</h3>
+              
+              {loadingRecords ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : treatmentRecords.length > 0 ? (
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-32">Data</TableHead>
+                        <TableHead>Procedimento Realizado</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {treatmentRecords.map((record) => (
+                        <TableRow key={record.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center">
+                              <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+                              {formatDate(record.data_realizacao)}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-start">
+                              <FileText className="h-4 w-4 mr-2 text-gray-400 mt-0.5 flex-shrink-0" />
+                              <span className="whitespace-pre-line">{record.descricao_procedimento}</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-gray-50 rounded-md">
+                  <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">Nenhum tratamento realizado registrado para este paciente.</p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </TabsContent>
         
         <TabsContent value="reminders">
