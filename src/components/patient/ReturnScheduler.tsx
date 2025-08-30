@@ -64,6 +64,7 @@ export function ReturnScheduler({
     defaultValues: {
       returnDate: new Date(new Date().setDate(new Date().getDate() + 30)), // 30 dias à frente
       notifyTime: '09:00',
+      // CORRIGIDO: Usar patientName em vez de variável nome não definida
       message: `Olá. O retorno de ${patientName} está próximo. Será no dia {{data}}. Posso confirmar?`,
     },
   });
@@ -99,6 +100,7 @@ export function ReturnScheduler({
         form.reset({
           returnDate: new Date(new Date().setDate(new Date().getDate() + 30)),
           notifyTime: '09:00',
+          // CORRIGIDO: Usar patientName em vez de variável nome não definida
           message: `Olá. O retorno de ${patientName} está próximo. Será no dia {{data}}. Posso confirmar?`,
         });
         
@@ -218,13 +220,13 @@ export function ReturnScheduler({
                 <FormLabel>Mensagem Personalizada</FormLabel>
                 <FormControl>
                   <Textarea 
-                    placeholder="Olá. O retorno de {{nome}} está próximo. Será no dia {{data}}. Posso confirmar?"
+                    placeholder={`Olá. O retorno de ${patientName} está próximo. Será no dia {{data}}. Posso confirmar?`}
                     className="resize-none h-20"
                     {...field}
                   />
                 </FormControl>
                 <FormDescription>
-                  Use {{nome}} para o nome do paciente e {{data}} para a data de retorno
+                  Use {{data}} para a data de retorno na mensagem
                 </FormDescription>
                 <FormMessage />
               </FormItem>

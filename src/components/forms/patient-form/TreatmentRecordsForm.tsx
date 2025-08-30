@@ -153,7 +153,8 @@ export function TreatmentRecordsForm({ patientId, patientName }: TreatmentRecord
       }
 
       console.log('Registro salvo com sucesso');
-      toast.success(editingRecord ? 'Registro atualizado com sucesso!' : 'Registro adicionado com sucesso!');
+      // CORRIGIDO: Toast específico para tratamento realizado, não para formulário
+      toast.success(editingRecord ? 'Registro de tratamento atualizado!' : 'Registro de tratamento adicionado!');
 
       // Resetar formulário e fechar dialog
       form.reset();
