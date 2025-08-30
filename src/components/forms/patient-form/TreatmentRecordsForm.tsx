@@ -61,7 +61,7 @@ interface TreatmentRecordsFormProps {
 
 export function TreatmentRecordsForm({ patientId, patientName }: TreatmentRecordsFormProps) {
   const [records, setRecords] = useState<TreatmentRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
@@ -75,7 +75,7 @@ export function TreatmentRecordsForm({ patientId, patientName }: TreatmentRecord
     },
   });
 
-  // Carregar registros de tratamento
+  // Carregar registros de tratamento apenas se houver patientId
   const loadTreatmentRecords = async () => {
     if (!patientId) {
       setLoading(false);
@@ -108,7 +108,9 @@ export function TreatmentRecordsForm({ patientId, patientName }: TreatmentRecord
   };
 
   useEffect(() => {
-    loadTreatmentRecords();
+    if (patientId) {
+      loadTreatmentRecords();
+    }
   }, [patientId]);
 
   // Salvar registro
@@ -209,6 +211,11 @@ export function TreatmentRecordsForm({ patientId, patientName }: TreatmentRecord
 
   // Abrir dialog para novo registro
   const handleNew = () => {
+    if (!patientId) {
+      toast.error('Salve o formulário do paciente primeiro para adicionar tratamentos realizados');
+      return;
+    }
+    
     setEditingRecord(null);
     form.reset({
       data_realizacao: '',
@@ -217,27 +224,22 @@ export function TreatmentRecordsForm({ patientId, patientName }: TreatmentRecord
     setShowDialog(true);
   };
 
-  if (!patientId) {
-    return (
-      <div className="bg-yellow-50 p-4 rounded-md text-yellow-800">
-        <p>Para registrar tratamentos realizados, primeiro salve o formulário do paciente.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-medium">Tratamentos Realizados</h3>
           <p className="text-sm text-gray-500">
-            Registre os procedimentos já executados para {patientName}
+            {patientId 
+              ? `Registre os procedimentos já executados para ${patientName}`
+              : 'Salve o formulário do paciente para registrar tratamentos realizados'
+            }
           </p>
         </div>
 
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
-            <Button onClick={handleNew}>
+            <Button onClick={handleNew} disabled={!patientId}>
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Registro
             </Button>
@@ -314,7 +316,11 @@ export function TreatmentRecordsForm({ patientId, patientName }: TreatmentRecord
         </Dialog>
       </div>
 
-      {loading ? (
+      {!patientId ? (
+        <div className="bg-blue-50 p-4 rounded-md text-blue-800">
+          <p>💡 Esta seção ficará disponível após salvar o formulário do paciente.</p>
+        </div>
+      ) : loading ? (
         <div className="flex justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
@@ -400,7 +406,7 @@ export function TreatmentRecordsForm({ patientId, patientName }: TreatmentRecord
         <div className="text-center py-8 bg-gray-50 rounded-md">
           <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 mb-2">Nenhum tratamento realizado registrado</p>
-          <Button variant="link" onClick={handleNew}>
+          <Button variant="link" onClick={handleNew} disabled={!patientId}>
             Adicionar primeiro registro
           </Button>
         </div>

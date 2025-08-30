@@ -9,7 +9,8 @@ import {
   X, 
   LogOut,
   Home,
-  Bell
+  Bell,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     },
     {
       title: 'Formulários',
-      href: '/admin/forms/new',
+      href: '/admin/dashboard',
       icon: <FileText className="h-5 w-5" />
     },
     {
@@ -104,6 +105,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <span className="ml-3">{item.title}</span>
             </Button>
           ))}
+          
+          {/* Botão separado para Novo Formulário */}
+          <div className="pt-2 mt-2 border-t border-gray-100">
+            <Button
+              variant="outline"
+              className="w-full justify-start text-primary border-primary/20 hover:bg-primary/5"
+              onClick={() => handleNavigation('/admin/forms/new')}
+            >
+              <Plus className="h-5 w-5" />
+              <span className="ml-3">Novo Formulário</span>
+            </Button>
+          </div>
         </nav>
         
         <div className="p-4 mt-auto border-t border-gray-200 space-y-3">
@@ -196,6 +209,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   <span className="ml-3">{item.title}</span>
                 </Button>
               ))}
+              
+              {/* Botão separado para Novo Formulário */}
+              <div className="pt-2 mt-2 border-t border-gray-100">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-primary border-primary/20 hover:bg-primary/5"
+                  onClick={() => handleNavigation('/admin/forms/new')}
+                >
+                  <Plus className="h-5 w-5" />
+                  <span className="ml-3">Novo Formulário</span>
+                </Button>
+              </div>
             </nav>
             
             <div className="p-4 mt-auto border-t border-gray-200 space-y-3">
