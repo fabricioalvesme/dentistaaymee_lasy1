@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/layout/AdminLayout';
@@ -40,7 +40,6 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { PatientFormPDF } from '@/components/exports/PatientFormPDF';
 import { UpcomingRemindersCard } from '@/components/dashboard/UpcomingRemindersCard';
-import { useAuthErrorHandler } from '@/hooks/useAuthErrorHandler';
 
 const Dashboard = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -65,17 +64,23 @@ const Dashboard = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { settings } = useTheme();
-  const { handleSupabaseError } = useAuthErrorHandler();
   
   const navigate = useNavigate();
 
-  // OTIMIZADO: Fetch com tratamento de erros de autenticação
-  const fetchPatients = useCallback(async () => {
+  // CORRIGIDO: Função simples sem useCallback para evitar dependências circulares
+  const fetchPatients = async () => {
     try {
       setLoading(true);
       setError(null);
       
       console.log('Carregando pacientes...');
+      
+      // Timeout de segurança
+      const timeoutId = setTimeout(() => {
+        setLoading(false);
+        setError('Timeout ao carregar dados. Tente novamente.');
+        toast.error('Timeout ao carregar dados. Tente novamente.');
+      }, 15000); // 15 segundos
       
       let query = supabase
         .from('patients')
@@ -98,15 +103,13 @@ const Dashboard = () => {
       
       const { data, error, count } = await query;
       
+      clearTimeout(timeoutId);
+      
       if (error) {
         console.error('Erro ao carregar pacientes:', error);
-        
-        // Verificar se é erro de autenticação
-        const isAuthError = await handleSupabaseError(error);
-        if (isAuthError) return; // Sessão foi renovada ou redirecionou
-        
         setError('Erro ao carregar dados dos pacientes. Tente novamente.');
-        throw error;
+        toast.error('Erro ao carregar dados dos pacientes');
+        return;
       }
       
       console.log('Pacientes carregados:', data?.length || 0);
@@ -122,19 +125,19 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error('Erro ao carregar pacientes:', error);
-      if (!error.message?.includes('JWT expired')) {
-        toast.error('Erro ao carregar dados dos pacientes');
-      }
+      setError('Erro inesperado ao carregar dados.');
+      toast.error('Erro ao carregar dados dos pacientes');
     } finally {
       setLoading(false);
     }
-  }, [periodFilter, handleSupabaseError]);
+  };
 
+  // CORRIGIDO: useEffect simples sem dependências problemáticas
   useEffect(() => {
     fetchPatients();
-  }, [fetchPatients]);
+  }, [periodFilter]); // Apenas periodFilter como dependência
 
-  // OTIMIZADO: Filtro com debounce implícito
+  // Filtro de pacientes
   const filteredPatients = patients.filter(patient => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
@@ -142,7 +145,7 @@ const Dashboard = () => {
            patient.nome_responsavel.toLowerCase().includes(searchLower);
   });
 
-  // OTIMIZADO: Carregamento lazy dos detalhes
+  // Carregamento de detalhes para modal
   const loadPatientDetailsForModal = async (patientId: string) => {
     try {
       setLoadingDetails(true);
@@ -159,10 +162,7 @@ const Dashboard = () => {
       setPatientDetails({ healthHistory, treatment });
     } catch (error) {
       console.error('Erro ao carregar detalhes do paciente:', error);
-      const isAuthError = await handleSupabaseError(error);
-      if (!isAuthError) {
-        toast.error('Erro ao carregar detalhes do paciente');
-      }
+      toast.error('Erro ao carregar detalhes do paciente');
     } finally {
       setLoadingDetails(false);
     }
@@ -179,13 +179,13 @@ const Dashboard = () => {
     await loadPatientDetailsForModal(patient.id);
   };
 
-  // OTIMIZADO: Exclusão com operações em lote
+  // MELHORADO: Exclusão com verificação de persistência
   const handleDelete = async (patientId: string) => {
     try {
       setIsDeleting(true);
       console.log('Excluindo paciente e dados relacionados:', patientId);
       
-      // Executar exclusões em paralelo para melhor performance
+      // Executar exclusões em paralelo
       const deleteOperations = [
         supabase.from('health_histories').delete().eq('patient_id', patientId),
         supabase.from('treatments').delete().eq('patient_id', patientId),
@@ -198,16 +198,17 @@ const Dashboard = () => {
 
       const { error } = await supabase.from('patients').delete().eq('id', patientId);
       if (error) {
-        const isAuthError = await handleSupabaseError(error);
-        if (isAuthError) return;
+        console.error('Erro ao excluir paciente:', error);
         throw error;
       }
 
       toast.success('Paciente e todos os seus dados foram excluídos com sucesso.');
-      await fetchPatients(); // Recarrega a lista
+      
+      // Recarregar lista para garantir consistência
+      await fetchPatients();
     } catch (error: any) {
       console.error('Erro ao excluir paciente:', error);
-      toast.error('Erro ao excluir paciente: ' + error.message);
+      toast.error('Erro ao excluir paciente: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setIsDeleting(false);
     }
