@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -175,14 +175,13 @@ const NewPatientForm = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dados-pessoais');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!id); // Só carrega se estiver editando
   const [saving, setSaving] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [isCopying, setIsCopying] = useState(false);
   const [patientReminders, setPatientReminders] = useState<Reminder[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [dataLoaded, setDataLoaded] = useState(false);
   
   const { getPatientReminders } = useNotifications();
   
@@ -263,24 +262,9 @@ const NewPatientForm = () => {
     }
   });
 
-  // Carregar lembretes de retorno do paciente
-  const loadPatientReminders = async (patientId: string) => {
-    try {
-      const reminders = await getPatientReminders(patientId);
-      const returnReminders = reminders.filter(r => r.type === 'return');
-      setPatientReminders(returnReminders);
-      return returnReminders;
-    } catch (error) {
-      console.error("Erro ao carregar lembretes:", error);
-      return [];
-    }
-  };
-
-  // CORRIGIDO: Carregamento simplificado e com timeout
+  // Carregar dados do paciente se estiver editando
   useEffect(() => {
-    if (!id || dataLoaded) return;
-
-    let timeoutId: NodeJS.Timeout;
+    if (!id) return;
 
     async function loadPatient() {
       try {
@@ -289,46 +273,34 @@ const NewPatientForm = () => {
         
         console.log('Carregando dados do paciente:', id);
         
-        // Timeout de segurança para evitar loading infinito
-        timeoutId = setTimeout(() => {
-          setLoading(false);
-          setLoadError('Timeout ao carregar dados. Tente novamente.');
-          toast.error('Timeout ao carregar dados. Tente novamente.');
-        }, 10000); // 10 segundos
-        
-        // Carregar dados do paciente primeiro
-        const { data: patient, error: patientError } = await supabase
-          .from('patients')
-          .select('*')
-          .eq('id', id)
-          .single();
-        
-        if (patientError || !patient) {
-          clearTimeout(timeoutId);
-          setLoadError('Paciente não encontrado.');
-          toast.error('Paciente não encontrado.');
-          setLoading(false);
-          return;
-        }
-        
-        // Carregar dados relacionados em paralelo
-        const [healthHistoryResult, treatmentResult] = await Promise.allSettled([
+        // Carregar dados em paralelo
+        const [patientResult, healthHistoryResult, treatmentResult] = await Promise.allSettled([
+          supabase.from('patients').select('*').eq('id', id).single(),
           supabase.from('health_histories').select('*').eq('patient_id', id).single(),
           supabase.from('treatments').select('*').eq('patient_id', id).single()
         ]);
         
+        // Verificar se o paciente existe
+        if (patientResult.status === 'rejected' || !patientResult.value.data) {
+          setLoadError('Paciente não encontrado.');
+          toast.error('Paciente não encontrado.');
+          return;
+        }
+        
+        const patient = patientResult.value.data;
         const healthHistory = healthHistoryResult.status === 'fulfilled' ? healthHistoryResult.value.data : null;
         const treatment = treatmentResult.status === 'fulfilled' ? treatmentResult.value.data : null;
         
-        // Carregar lembretes (não bloquear se falhar)
+        // Carregar lembretes
         try {
-          await loadPatientReminders(id);
+          const reminders = await getPatientReminders(id);
+          setPatientReminders(reminders.filter(r => r.type === 'return'));
         } catch (error) {
-          console.warn('Erro ao carregar lembretes (não crítico):', error);
+          console.warn('Erro ao carregar lembretes:', error);
         }
         
         // Resetar formulário com dados carregados
-        const formData = {
+        form.reset({
           nome: patient.nome || '',
           data_nascimento: patient.data_nascimento || '',
           endereco: patient.endereco || '',
@@ -435,15 +407,10 @@ const NewPatientForm = () => {
           internacoes_recentes: healthHistory?.internacoes_recentes || '',
           peso_atual: healthHistory?.peso_atual || '',
           plano_tratamento: treatment?.plano_tratamento || '',
-        };
+        });
         
-        form.reset(formData);
-        
-        clearTimeout(timeoutId);
-        setDataLoaded(true);
         console.log('Dados carregados com sucesso para:', patient.nome);
       } catch (error) {
-        clearTimeout(timeoutId);
         console.error('Erro ao carregar dados do formulário:', error);
         setLoadError('Erro ao carregar dados do formulário.');
         toast.error('Erro ao carregar dados do formulário.');
@@ -452,15 +419,10 @@ const NewPatientForm = () => {
       }
     }
     
-    loadPatient();
-
-    // Cleanup function
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [id, dataLoaded]); // Dependências simplificadas
+    if (id) {
+      loadPatient();
+    }
+  }, [id]); // Dependência apenas no ID
 
   // Função para validar a aba atual e passar para a próxima
   const validateTabAndContinue = async (nextTab: string) => {
@@ -479,112 +441,235 @@ const NewPatientForm = () => {
     }
   };
 
-  // Função para salvar o formulário
+  // MELHORADO: Função para salvar com verificação de persistência
   const onSubmit = async (data: PatientFormValues, share: boolean = false) => {
     try {
       setSaving(true);
+      console.log('Iniciando salvamento do formulário:', { isEditing: !!id, share });
       
       const patientData = {
-        nome: data.nome, data_nascimento: data.data_nascimento, endereco: data.endereco,
-        nome_responsavel: data.nome_responsavel, cpf: data.cpf, telefone: data.telefone,
-        observacoes: data.observacoes, status: share ? 'enviado' : 'rascunho',
+        nome: data.nome,
+        data_nascimento: data.data_nascimento,
+        endereco: data.endereco,
+        nome_responsavel: data.nome_responsavel,
+        cpf: data.cpf,
+        telefone: data.telefone,
+        observacoes: data.observacoes || '',
+        status: share ? 'enviado' : 'rascunho',
       };
       
       const healthHistoryData = {
-        queixa_principal: data.queixa_principal, tipo_parto: data.tipo_parto, aleitamento: data.aleitamento,
-        alergia_medicamentos: data.alergia_medicamentos, desc_alergia_medicamentos: data.desc_alergia_medicamentos,
-        alergia_alimentar: data.alergia_alimentar, desc_alergia_alimentar: data.desc_alergia_alimentar,
-        doenca_cardiaca: data.doenca_cardiaca, desc_doenca_cardiaca: data.desc_doenca_cardiaca,
-        diabetes: data.diabetes, desc_diabetes: data.desc_diabetes,
-        disturbios_neurologicos: data.disturbios_neurologicos, desc_disturbios_neurologicos: data.desc_disturbios_neurologicos,
-        epilepsia_convulsoes: data.epilepsia_convulsoes, desc_epilepsia_convulsoes: data.desc_epilepsia_convulsoes,
-        hipertensao: data.hipertensao, desc_hipertensao: data.desc_hipertensao,
-        asma: data.asma, desc_asma: data.desc_asma,
-        doenca_renal: data.doenca_renal, desc_doenca_renal: data.desc_doenca_renal,
-        sindromes_geneticas: data.sindromes_geneticas, desc_sindromes_geneticas: data.desc_sindromes_geneticas,
-        doenca_autoimune: data.doenca_autoimune, desc_doenca_autoimune: data.desc_doenca_autoimune,
-        disturbios_coagulacao: data.disturbios_coagulacao, desc_disturbios_coagulacao: data.desc_disturbios_coagulacao,
-        uso_atual_medicamentos: data.uso_atual_medicamentos, desc_uso_atual_medicamentos: data.desc_uso_atual_medicamentos,
-        medicamentos_continuos: data.medicamentos_continuos, desc_medicamentos_continuos: data.desc_medicamentos_continuos,
-        uso_recente_antibioticos: data.uso_recente_antibioticos, desc_uso_recente_antibioticos: data.desc_uso_recente_antibioticos,
-        suplementos_nutricionais: data.suplementos_nutricionais, desc_suplementos_nutricionais: data.desc_suplementos_nutricionais,
-        tratamento_odontologico_anterior: data.tratamento_odontologico_anterior, desc_tratamento_odontologico_anterior: data.desc_tratamento_odontologico_anterior,
-        reacao_negativa_odontologica: data.reacao_negativa_odontologica, desc_reacao_negativa_odontologica: data.desc_reacao_negativa_odontologica,
-        necessidade_sedacao_especial: data.necessidade_sedacao_especial, desc_necessidade_sedacao_especial: data.desc_necessidade_sedacao_especial,
-        trauma_dental: data.trauma_dental, desc_trauma_dental: data.desc_trauma_dental,
-        ansiedade_consultas: data.ansiedade_consultas, desc_ansiedade_consultas: data.desc_ansiedade_consultas,
-        dificuldade_colaboracao: data.dificuldade_colaboracao, desc_dificuldade_colaboracao: data.desc_dificuldade_colaboracao,
-        historico_internacoes: data.historico_internacoes, desc_historico_internacoes: data.desc_historico_internacoes,
-        necessidades_especiais: data.necessidades_especiais, desc_necessidades_especiais: data.desc_necessidades_especiais,
-        nascimento_prematuro: data.nascimento_prematuro, desc_nascimento_prematuro: data.desc_nascimento_prematuro,
-        parto_complicacoes: data.parto_complicacoes, desc_parto_complicacoes: data.desc_parto_complicacoes,
-        uso_chupeta: data.uso_chupeta, desc_uso_chupeta: data.desc_uso_chupeta,
-        habitos_succao_bruxismo: data.habitos_succao_bruxismo, desc_habitos_succao_bruxismo: data.desc_habitos_succao_bruxismo,
-        amamentacao_prolongada: data.amamentacao_prolongada, desc_amamentacao_prolongada: data.desc_amamentacao_prolongada,
-        alimentacao_especial: data.alimentacao_especial, desc_alimentacao_especial: data.desc_alimentacao_especial,
-        realizou_cirurgia: data.realizou_cirurgia, desc_realizou_cirurgia: data.desc_realizou_cirurgia,
-        foi_internado: data.foi_internado, desc_foi_internado: data.desc_foi_internado,
-        transfusao_sangue: data.transfusao_sangue, desc_transfusao_sangue: data.desc_transfusao_sangue,
-        doencas_hereditarias: data.doencas_hereditarias, desc_doencas_hereditarias: data.desc_doencas_hereditarias,
-        historico_alergias_familia: data.historico_alergias_familia, desc_historico_alergias_familia: data.desc_historico_alergias_familia,
-        problemas_dentarios_familia: data.problemas_dentarios_familia, desc_problemas_dentarios_familia: data.desc_problemas_dentarios_familia,
-        problemas_gestacao: data.problemas_gestacao, presenca_doenca: data.presenca_doenca,
-        idade_primeiro_dente: data.idade_primeiro_dente, anestesia_odontologica: data.anestesia_odontologica,
-        frequencia_escovacao: data.frequencia_escovacao, creme_dental: data.creme_dental,
-        contem_fluor: data.contem_fluor, uso_fio_dental: data.uso_fio_dental,
-        quem_realiza_escovacao: data.quem_realiza_escovacao, uso_mamadeira: data.uso_mamadeira,
-        refeicoes_diarias: data.refeicoes_diarias, fonte_acucar: data.fonte_acucar,
-        habito_succao: data.habito_succao, roer_unhas: data.roer_unhas,
-        dormir_boca_aberta: data.dormir_boca_aberta, vacinacao_dia: data.vacinacao_dia,
-        problemas_cardiacos: data.problemas_cardiacos, problemas_renais: data.problemas_renais,
-        problemas_gastricos: data.problemas_gastricos, problemas_respiratorios: data.problemas_respiratorios,
-        alteracao_coagulacao: data.alteracao_coagulacao, internacoes_recentes: data.internacoes_recentes,
-        peso_atual: data.peso_atual,
+        queixa_principal: data.queixa_principal,
+        tipo_parto: data.tipo_parto,
+        aleitamento: data.aleitamento,
+        alergia_medicamentos: data.alergia_medicamentos,
+        desc_alergia_medicamentos: data.desc_alergia_medicamentos || '',
+        alergia_alimentar: data.alergia_alimentar,
+        desc_alergia_alimentar: data.desc_alergia_alimentar || '',
+        doenca_cardiaca: data.doenca_cardiaca,
+        desc_doenca_cardiaca: data.desc_doenca_cardiaca || '',
+        diabetes: data.diabetes,
+        desc_diabetes: data.desc_diabetes || '',
+        disturbios_neurologicos: data.disturbios_neurologicos,
+        desc_disturbios_neurologicos: data.desc_disturbios_neurologicos || '',
+        epilepsia_convulsoes: data.epilepsia_convulsoes,
+        desc_epilepsia_convulsoes: data.desc_epilepsia_convulsoes || '',
+        hipertensao: data.hipertensao,
+        desc_hipertensao: data.desc_hipertensao || '',
+        asma: data.asma,
+        desc_asma: data.desc_asma || '',
+        doenca_renal: data.doenca_renal,
+        desc_doenca_renal: data.desc_doenca_renal || '',
+        sindromes_geneticas: data.sindromes_geneticas,
+        desc_sindromes_geneticas: data.desc_sindromes_geneticas || '',
+        doenca_autoimune: data.doenca_autoimune,
+        desc_doenca_autoimune: data.desc_doenca_autoimune || '',
+        disturbios_coagulacao: data.disturbios_coagulacao,
+        desc_disturbios_coagulacao: data.desc_disturbios_coagulacao || '',
+        uso_atual_medicamentos: data.uso_atual_medicamentos,
+        desc_uso_atual_medicamentos: data.desc_uso_atual_medicamentos || '',
+        medicamentos_continuos: data.medicamentos_continuos,
+        desc_medicamentos_continuos: data.desc_medicamentos_continuos || '',
+        uso_recente_antibioticos: data.uso_recente_antibioticos,
+        desc_uso_recente_antibioticos: data.desc_uso_recente_antibioticos || '',
+        suplementos_nutricionais: data.suplementos_nutricionais,
+        desc_suplementos_nutricionais: data.desc_suplementos_nutricionais || '',
+        tratamento_odontologico_anterior: data.tratamento_odontologico_anterior,
+        desc_tratamento_odontologico_anterior: data.desc_tratamento_odontologico_anterior || '',
+        reacao_negativa_odontologica: data.reacao_negativa_odontologica,
+        desc_reacao_negativa_odontologica: data.desc_reacao_negativa_odontologica || '',
+        necessidade_sedacao_especial: data.necessidade_sedacao_especial,
+        desc_necessidade_sedacao_especial: data.desc_necessidade_sedacao_especial || '',
+        trauma_dental: data.trauma_dental,
+        desc_trauma_dental: data.desc_trauma_dental || '',
+        ansiedade_consultas: data.ansiedade_consultas,
+        desc_ansiedade_consultas: data.desc_ansiedade_consultas || '',
+        dificuldade_colaboracao: data.dificuldade_colaboracao,
+        desc_dificuldade_colaboracao: data.desc_dificuldade_colaboracao || '',
+        historico_internacoes: data.historico_internacoes,
+        desc_historico_internacoes: data.desc_historico_internacoes || '',
+        necessidades_especiais: data.necessidades_especiais,
+        desc_necessidades_especiais: data.desc_necessidades_especiais || '',
+        nascimento_prematuro: data.nascimento_prematuro,
+        desc_nascimento_prematuro: data.desc_nascimento_prematuro || '',
+        parto_complicacoes: data.parto_complicacoes,
+        desc_parto_complicacoes: data.desc_parto_complicacoes || '',
+        uso_chupeta: data.uso_chupeta,
+        desc_uso_chupeta: data.desc_uso_chupeta || '',
+        
+        habitos_succao_bruxismo: data.habitos_succao_bruxismo,
+        desc_habitos_succao_bruxismo: data.desc_habitos_succao_bruxismo || '',
+        amamentacao_prolongada: data.amamentacao_prolongada,
+        desc_amamentacao_prolongada: data.desc_amamentacao_prolongada || '',
+        alimentacao_especial: data.alimentacao_especial,
+        desc_alimentacao_especial: data.desc_alimentacao_especial || '',
+        realizou_cirurgia: data.realizou_cirurgia,
+        desc_realizou_cirurgia: data.desc_realizou_cirurgia || '',
+        foi_internado: data.foi_internado,
+        desc_foi_internado: data.desc_foi_internado || '',
+        transfusao_sangue: data.transfusao_sangue,
+        desc_transfusao_sangue: data.desc_transfusao_sangue || '',
+        doencas_hereditarias: data.doencas_hereditarias,
+        desc_doencas_hereditarias: data.desc_doencas_hereditarias || '',
+        historico_alergias_familia: data.historico_alergias_familia,
+        desc_historico_alergias_familia: data.desc_historico_alergias_familia || '',
+        problemas_dentarios_familia: data.problemas_dentarios_familia,
+        desc_problemas_dentarios_familia: data.desc_problemas_dentarios_familia || '',
+        problemas_gestacao: data.problemas_gestacao || '',
+        presenca_doenca: data.presenca_doenca || '',
+        idade_primeiro_dente: data.idade_primeiro_dente || '',
+        anestesia_odontologica: data.anestesia_odontologica,
+        frequencia_escovacao: data.frequencia_escovacao || '',
+        creme_dental: data.creme_dental || '',
+        contem_fluor: data.contem_fluor,
+        uso_fio_dental: data.uso_fio_dental,
+        quem_realiza_escovacao: data.quem_realiza_escovacao || '',
+        uso_mamadeira: data.uso_mamadeira,
+        refeicoes_diarias: data.refeicoes_diarias || '',
+        fonte_acucar: data.fonte_acucar || '',
+        habito_succao: data.habito_succao,
+        roer_unhas: data.roer_unhas,
+        dormir_boca_aberta: data.dormir_boca_aberta,
+        vacinacao_dia: data.vacinacao_dia,
+        problemas_cardiacos: data.problemas_cardiacos || '',
+        problemas_renais: data.problemas_renais || '',
+        problemas_gastricos: data.problemas_gastricos || '',
+        problemas_respiratorios: data.problemas_respiratorios || '',
+        alteracao_coagulacao: data.alteracao_coagulacao || '',
+        internacoes_recentes: data.internacoes_recentes || '',
+        peso_atual: data.peso_atual || '',
       };
-      
-      const treatmentData = { plano_tratamento: data.plano_tratamento };
       
       let patientId = id;
       
+      // Salvar dados do paciente
       if (id) {
-        const { error } = await supabase.from('patients').update(patientData).eq('id', id);
-        if (error) throw error;
+        console.log('Atualizando paciente existente:', id);
+        const { error } = await supabase
+          .from('patients')
+          .update(patientData)
+          .eq('id', id);
+        
+        if (error) {
+          console.error('Erro ao atualizar paciente:', error);
+          throw error;
+        }
+        console.log('Paciente atualizado com sucesso');
       } else {
-        const { data: newPatient, error } = await supabase.from('patients').insert([patientData]).select();
-        if (error || !newPatient) throw error || new Error("Falha ao criar paciente.");
+        console.log('Criando novo paciente');
+        const { data: newPatient, error } = await supabase
+          .from('patients')
+          .insert([patientData])
+          .select();
+        
+        if (error || !newPatient) {
+          console.error('Erro ao criar paciente:', error);
+          throw error || new Error("Falha ao criar paciente.");
+        }
+        
         patientId = newPatient[0].id;
+        console.log('Novo paciente criado:', patientId);
       }
       
       if (patientId) {
-        // Executar operações em paralelo para melhor performance
-        const operations = [];
+        // Salvar histórico de saúde
+        console.log('Salvando histórico de saúde...');
+        const { data: existingHistory } = await supabase
+          .from('health_histories')
+          .select('id')
+          .eq('patient_id', patientId)
+          .single();
         
-        // Health History
-        const { data: existingHistory } = await supabase.from('health_histories').select('id').eq('patient_id', patientId).single();
         if (existingHistory) {
-          operations.push(supabase.from('health_histories').update({ ...healthHistoryData, patient_id: patientId }).eq('id', existingHistory.id));
+          const { error } = await supabase
+            .from('health_histories')
+            .update({ ...healthHistoryData, patient_id: patientId })
+            .eq('id', existingHistory.id);
+          
+          if (error) {
+            console.error('Erro ao atualizar histórico:', error);
+            throw error;
+          }
+          console.log('Histórico de saúde atualizado');
         } else {
-          operations.push(supabase.from('health_histories').insert([{ ...healthHistoryData, patient_id: patientId }]));
+          const { error } = await supabase
+            .from('health_histories')
+            .insert([{ ...healthHistoryData, patient_id: patientId }]);
+          
+          if (error) {
+            console.error('Erro ao criar histórico:', error);
+            throw error;
+          }
+          console.log('Histórico de saúde criado');
         }
         
-        // Treatment
+        // Salvar plano de tratamento se fornecido
         if (data.plano_tratamento) {
-          const { data: existingTreatment } = await supabase.from('treatments').select('id').eq('patient_id', patientId).single();
+          console.log('Salvando plano de tratamento...');
+          const treatmentData = { plano_tratamento: data.plano_tratamento };
+          
+          const { data: existingTreatment } = await supabase
+            .from('treatments')
+            .select('id')
+            .eq('patient_id', patientId)
+            .single();
+          
           if (existingTreatment) {
-            operations.push(supabase.from('treatments').update({ ...treatmentData, patient_id: patientId }).eq('id', existingTreatment.id));
+            const { error } = await supabase
+              .from('treatments')
+              .update({ ...treatmentData, patient_id: patientId })
+              .eq('id', existingTreatment.id);
+            
+            if (error) {
+              console.error('Erro ao atualizar tratamento:', error);
+              throw error;
+            }
+            console.log('Plano de tratamento atualizado');
           } else {
-            operations.push(supabase.from('treatments').insert([{ ...treatmentData, patient_id: patientId }]));
+            const { error } = await supabase
+              .from('treatments')
+              .insert([{ ...treatmentData, patient_id: patientId }]);
+            
+            if (error) {
+              console.error('Erro ao criar tratamento:', error);
+              throw error;
+            }
+            console.log('Plano de tratamento criado');
           }
         }
         
-        // Executar todas as operações
-        const results = await Promise.allSettled(operations);
+        // Verificar se os dados foram realmente salvos
+        const { data: savedPatient, error: verifyError } = await supabase
+          .from('patients')
+          .select('*')
+          .eq('id', patientId)
+          .single();
         
-        // Verificar se houve erros
-        const errors = results.filter(r => r.status === 'rejected');
-        if (errors.length > 0) {
-          console.error('Erros ao salvar dados relacionados:', errors);
+        if (verifyError || !savedPatient) {
+          throw new Error('Falha na verificação dos dados salvos');
         }
+        
+        console.log('Dados verificados e salvos com sucesso');
         
         if (share) {
           const shareLink = `${window.location.origin}/public/form?id=${patientId}`;
@@ -635,11 +720,7 @@ const NewPatientForm = () => {
           <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
             <p className="font-medium">{loadError}</p>
             <div className="flex gap-2 mt-3">
-              <Button variant="outline" onClick={() => {
-                setLoadError(null);
-                setDataLoaded(false);
-                setLoading(false);
-              }}>
+              <Button variant="outline" onClick={() => window.location.reload()}>
                 Tentar novamente
               </Button>
               <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
