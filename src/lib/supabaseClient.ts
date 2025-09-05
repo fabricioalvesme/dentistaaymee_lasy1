@@ -1,7 +1,20 @@
-export { supabase } from './supabase';
+import { supabase } from './supabase';
 
-// Verificar se há erro de inicialização
-export const supabaseError = null; // Removendo verificação de erro que pode causar problemas
+let supabaseInitializationError: string | null = null;
+
+try {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    throw new Error('Variáveis de ambiente do Supabase (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) não foram definidas.');
+  }
+} catch (error: any) {
+  supabaseInitializationError = error.message;
+  console.error("Erro de configuração do Supabase:", error.message);
+}
+
+export { supabase };
+export const supabaseError = supabaseInitializationError;
 
 // Tipos para as tabelas do Supabase
 export type Patient = {

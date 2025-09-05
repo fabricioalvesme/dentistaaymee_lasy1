@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/layout/AdminLayout';
@@ -67,20 +67,12 @@ const Dashboard = () => {
   
   const navigate = useNavigate();
 
-  // CORRIGIDO: Função simples sem useCallback para evitar dependências circulares
-  const fetchPatients = async () => {
+  const fetchPatients = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('Carregando pacientes...');
-      
-      // Timeout de segurança
-      const timeoutId = setTimeout(() => {
-        setLoading(false);
-        setError('Timeout ao carregar dados. Tente novamente.');
-        toast.error('Timeout ao carregar dados. Tente novamente.');
-      }, 15000); // 15 segundos
+      console.log('Carregando pacientes com filtro:', periodFilter);
       
       let query = supabase
         .from('patients')
@@ -102,8 +94,6 @@ const Dashboard = () => {
       }
       
       const { data, error, count } = await query;
-      
-      clearTimeout(timeoutId);
       
       if (error) {
         console.error('Erro ao carregar pacientes:', error);
@@ -130,12 +120,11 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [periodFilter]);
 
-  // CORRIGIDO: useEffect simples sem dependências problemáticas
   useEffect(() => {
     fetchPatients();
-  }, [periodFilter]); // Apenas periodFilter como dependência
+  }, [fetchPatients]);
 
   // Filtro de pacientes
   const filteredPatients = patients.filter(patient => {
@@ -179,13 +168,11 @@ const Dashboard = () => {
     await loadPatientDetailsForModal(patient.id);
   };
 
-  // MELHORADO: Exclusão com verificação de persistência
   const handleDelete = async (patientId: string) => {
     try {
       setIsDeleting(true);
       console.log('Excluindo paciente e dados relacionados:', patientId);
       
-      // Executar exclusões em paralelo
       const deleteOperations = [
         supabase.from('health_histories').delete().eq('patient_id', patientId),
         supabase.from('treatments').delete().eq('patient_id', patientId),
@@ -204,7 +191,6 @@ const Dashboard = () => {
 
       toast.success('Paciente e todos os seus dados foram excluídos com sucesso.');
       
-      // Recarregar lista para garantir consistência
       await fetchPatients();
     } catch (error: any) {
       console.error('Erro ao excluir paciente:', error);

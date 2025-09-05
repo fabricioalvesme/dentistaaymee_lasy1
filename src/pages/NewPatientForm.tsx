@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -175,7 +175,7 @@ const NewPatientForm = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dados-pessoais');
-  const [loading, setLoading] = useState(!!id); // Só carrega se estiver editando
+  const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareLink, setShareLink] = useState('');
@@ -185,7 +185,6 @@ const NewPatientForm = () => {
   
   const { getPatientReminders } = useNotifications();
   
-  // Inicializar formulário com valores padrão
   const form = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
     defaultValues: {
@@ -262,169 +261,163 @@ const NewPatientForm = () => {
     }
   });
 
-  // Carregar dados do paciente se estiver editando
-  useEffect(() => {
+  const loadPatient = useCallback(async () => {
     if (!id) return;
 
-    async function loadPatient() {
-      try {
-        setLoading(true);
-        setLoadError(null);
-        
-        console.log('Carregando dados do paciente:', id);
-        
-        // Carregar dados em paralelo
-        const [patientResult, healthHistoryResult, treatmentResult] = await Promise.allSettled([
-          supabase.from('patients').select('*').eq('id', id).single(),
-          supabase.from('health_histories').select('*').eq('patient_id', id).single(),
-          supabase.from('treatments').select('*').eq('patient_id', id).single()
-        ]);
-        
-        // Verificar se o paciente existe
-        if (patientResult.status === 'rejected' || !patientResult.value.data) {
-          setLoadError('Paciente não encontrado.');
-          toast.error('Paciente não encontrado.');
-          return;
-        }
-        
-        const patient = patientResult.value.data;
-        const healthHistory = healthHistoryResult.status === 'fulfilled' ? healthHistoryResult.value.data : null;
-        const treatment = treatmentResult.status === 'fulfilled' ? treatmentResult.value.data : null;
-        
-        // Carregar lembretes
-        try {
-          const reminders = await getPatientReminders(id);
-          setPatientReminders(reminders.filter(r => r.type === 'return'));
-        } catch (error) {
-          console.warn('Erro ao carregar lembretes:', error);
-        }
-        
-        // Resetar formulário com dados carregados
-        form.reset({
-          nome: patient.nome || '',
-          data_nascimento: patient.data_nascimento || '',
-          endereco: patient.endereco || '',
-          nome_responsavel: patient.nome_responsavel || '',
-          cpf: patient.cpf || '',
-          telefone: patient.telefone || '',
-          observacoes: patient.observacoes || '',
-          queixa_principal: healthHistory?.queixa_principal || '',
-          tipo_parto: healthHistory?.tipo_parto || '',
-          aleitamento: healthHistory?.aleitamento || '',
-          alergia_medicamentos: healthHistory?.alergia_medicamentos || false,
-          desc_alergia_medicamentos: healthHistory?.desc_alergia_medicamentos || '',
-          alergia_alimentar: healthHistory?.alergia_alimentar || false,
-          desc_alergia_alimentar: healthHistory?.desc_alergia_alimentar || '',
-          doenca_cardiaca: healthHistory?.doenca_cardiaca || false,
-          desc_doenca_cardiaca: healthHistory?.desc_doenca_cardiaca || '',
-          diabetes: healthHistory?.diabetes || false,
-          desc_diabetes: healthHistory?.desc_diabetes || '',
-          disturbios_neurologicos: healthHistory?.disturbios_neurologicos || false,
-          desc_disturbios_neurologicos: healthHistory?.desc_disturbios_neurologicos || '',
-          epilepsia_convulsoes: healthHistory?.epilepsia_convulsoes || false,
-          desc_epilepsia_convulsoes: healthHistory?.desc_epilepsia_convulsoes || '',
-          hipertensao: healthHistory?.hipertensao || false,
-          desc_hipertensao: healthHistory?.desc_hipertensao || '',
-          asma: healthHistory?.asma || false,
-          desc_asma: healthHistory?.desc_asma || '',
-          doenca_renal: healthHistory?.doenca_renal || false,
-          desc_doenca_renal: healthHistory?.desc_doenca_renal || '',
-          sindromes_geneticas: healthHistory?.sindromes_geneticas || false,
-          desc_sindromes_geneticas: healthHistory?.desc_sindromes_geneticas || '',
-          doenca_autoimune: healthHistory?.doenca_autoimune || false,
-          desc_doenca_autoimune: healthHistory?.desc_doenca_autoimune || '',
-          disturbios_coagulacao: healthHistory?.disturbios_coagulacao || false,
-          desc_disturbios_coagulacao: healthHistory?.desc_disturbios_coagulacao || '',
-          uso_atual_medicamentos: healthHistory?.uso_atual_medicamentos || false,
-          desc_uso_atual_medicamentos: healthHistory?.desc_uso_atual_medicamentos || '',
-          medicamentos_continuos: healthHistory?.medicamentos_continuos || false,
-          desc_medicamentos_continuos: healthHistory?.desc_medicamentos_continuos || '',
-          uso_recente_antibioticos: healthHistory?.uso_recente_antibioticos || false,
-          desc_uso_recente_antibioticos: healthHistory?.desc_uso_recente_antibioticos || '',
-          suplementos_nutricionais: healthHistory?.suplementos_nutricionais || false,
-          desc_suplementos_nutricionais: healthHistory?.desc_suplementos_nutricionais || '',
-          tratamento_odontologico_anterior: healthHistory?.tratamento_odontologico_anterior || false,
-          desc_tratamento_odontologico_anterior: healthHistory?.desc_tratamento_odontologico_anterior || '',
-          reacao_negativa_odontologica: healthHistory?.reacao_negativa_odontologica || false,
-          desc_reacao_negativa_odontologica: healthHistory?.desc_reacao_negativa_odontologica || '',
-          necessidade_sedacao_especial: healthHistory?.necessidade_sedacao_especial || false,
-          desc_necessidade_sedacao_especial: healthHistory?.desc_necessidade_sedacao_especial || '',
-          trauma_dental: healthHistory?.trauma_dental || false,
-          desc_trauma_dental: healthHistory?.desc_trauma_dental || '',
-          ansiedade_consultas: healthHistory?.ansiedade_consultas || false,
-          desc_ansiedade_consultas: healthHistory?.desc_ansiedade_consultas || '',
-          dificuldade_colaboracao: healthHistory?.dificuldade_colaboracao || false,
-          desc_dificuldade_colaboracao: healthHistory?.desc_dificuldade_colaboracao || '',
-          historico_internacoes: healthHistory?.historico_internacoes || false,
-          desc_historico_internacoes: healthHistory?.desc_historico_internacoes || '',
-          necessidades_especiais: healthHistory?.necessidades_especiais || false,
-          desc_necessidades_especiais: healthHistory?.desc_necessidades_especiais || '',
-          nascimento_prematuro: healthHistory?.nascimento_prematuro || false,
-          desc_nascimento_prematuro: healthHistory?.desc_nascimento_prematuro || '',
-          parto_complicacoes: healthHistory?.parto_complicacoes || false,
-          desc_parto_complicacoes: healthHistory?.desc_parto_complicacoes || '',
-          uso_chupeta: healthHistory?.uso_chupeta || false,
-          desc_uso_chupeta: healthHistory?.desc_uso_chupeta || '',
-          habitos_succao_bruxismo: healthHistory?.habitos_succao_bruxismo || false,
-          desc_habitos_succao_bruxismo: healthHistory?.desc_habitos_succao_bruxismo || '',
-          amamentacao_prolongada: healthHistory?.amamentacao_prolongada || false,
-          desc_amamentacao_prolongada: healthHistory?.desc_amamentacao_prolongada || '',
-          alimentacao_especial: healthHistory?.alimentacao_especial || false,
-          desc_alimentacao_especial: healthHistory?.desc_alimentacao_especial || '',
-          realizou_cirurgia: healthHistory?.realizou_cirurgia || false,
-          desc_realizou_cirurgia: healthHistory?.desc_realizou_cirurgia || '',
-          foi_internado: healthHistory?.foi_internado || false,
-          desc_foi_internado: healthHistory?.desc_foi_internado || '',
-          transfusao_sangue: healthHistory?.transfusao_sangue || false,
-          desc_transfusao_sangue: healthHistory?.desc_transfusao_sangue || '',
-          doencas_hereditarias: healthHistory?.doencas_hereditarias || false,
-          desc_doencas_hereditarias: healthHistory?.desc_doencas_hereditarias || '',
-          historico_alergias_familia: healthHistory?.historico_alergias_familia || false,
-          desc_historico_alergias_familia: healthHistory?.desc_historico_alergias_familia || '',
-          problemas_dentarios_familia: healthHistory?.problemas_dentarios_familia || false,
-          desc_problemas_dentarios_familia: healthHistory?.desc_problemas_dentarios_familia || '',
-          problemas_gestacao: healthHistory?.problemas_gestacao || '',
-          presenca_doenca: healthHistory?.presenca_doenca || '',
-          idade_primeiro_dente: healthHistory?.idade_primeiro_dente || '',
-          anestesia_odontologica: healthHistory?.anestesia_odontologica !== undefined ? healthHistory.anestesia_odontologica : false,
-          frequencia_escovacao: healthHistory?.frequencia_escovacao || '',
-          creme_dental: healthHistory?.creme_dental || '',
-          contem_fluor: healthHistory?.contem_fluor !== undefined ? healthHistory.contem_fluor : true,
-          uso_fio_dental: healthHistory?.uso_fio_dental !== undefined ? healthHistory.uso_fio_dental : false,
-          quem_realiza_escovacao: healthHistory?.quem_realiza_escovacao || '',
-          uso_mamadeira: healthHistory?.uso_mamadeira !== undefined ? healthHistory.uso_mamadeira : false,
-          refeicoes_diarias: healthHistory?.refeicoes_diarias || '',
-          fonte_acucar: healthHistory?.fonte_acucar || '',
-          habito_succao: healthHistory?.habito_succao !== undefined ? healthHistory.habito_succao : false,
-          roer_unhas: healthHistory?.roer_unhas !== undefined ? healthHistory.roer_unhas : false,
-          dormir_boca_aberta: healthHistory?.dormir_boca_aberta !== undefined ? healthHistory.dormir_boca_aberta : false,
-          vacinacao_dia: healthHistory?.vacinacao_dia !== undefined ? healthHistory.vacinacao_dia : true,
-          problemas_cardiacos: healthHistory?.problemas_cardiacos || '',
-          problemas_renais: healthHistory?.problemas_renais || '',
-          problemas_gastricos: healthHistory?.problemas_gastricos || '',
-          problemas_respiratorios: healthHistory?.problemas_respiratorios || '',
-          alteracao_coagulacao: healthHistory?.alteracao_coagulacao || '',
-          internacoes_recentes: healthHistory?.internacoes_recentes || '',
-          peso_atual: healthHistory?.peso_atual || '',
-          plano_tratamento: treatment?.plano_tratamento || '',
-        });
-        
-        console.log('Dados carregados com sucesso para:', patient.nome);
-      } catch (error) {
-        console.error('Erro ao carregar dados do formulário:', error);
-        setLoadError('Erro ao carregar dados do formulário.');
-        toast.error('Erro ao carregar dados do formulário.');
-      } finally {
-        setLoading(false);
+    try {
+      setLoading(true);
+      setLoadError(null);
+      
+      console.log('Carregando dados do paciente:', id);
+      
+      const [patientResult, healthHistoryResult, treatmentResult] = await Promise.allSettled([
+        supabase.from('patients').select('*').eq('id', id).single(),
+        supabase.from('health_histories').select('*').eq('patient_id', id).single(),
+        supabase.from('treatments').select('*').eq('patient_id', id).single()
+      ]);
+      
+      if (patientResult.status === 'rejected' || !patientResult.value.data) {
+        setLoadError('Paciente não encontrado.');
+        toast.error('Paciente não encontrado.');
+        return;
       }
+      
+      const patient = patientResult.value.data;
+      const healthHistory = healthHistoryResult.status === 'fulfilled' ? healthHistoryResult.value.data : null;
+      const treatment = treatmentResult.status === 'fulfilled' ? treatmentResult.value.data : null;
+      
+      try {
+        const reminders = await getPatientReminders(id);
+        setPatientReminders(reminders.filter(r => r.type === 'return'));
+      } catch (error) {
+        console.warn('Erro ao carregar lembretes:', error);
+      }
+      
+      form.reset({
+        nome: patient.nome || '',
+        data_nascimento: patient.data_nascimento || '',
+        endereco: patient.endereco || '',
+        nome_responsavel: patient.nome_responsavel || '',
+        cpf: patient.cpf || '',
+        telefone: patient.telefone || '',
+        observacoes: patient.observacoes || '',
+        queixa_principal: healthHistory?.queixa_principal || '',
+        tipo_parto: healthHistory?.tipo_parto || '',
+        aleitamento: healthHistory?.aleitamento || '',
+        alergia_medicamentos: healthHistory?.alergia_medicamentos || false,
+        desc_alergia_medicamentos: healthHistory?.desc_alergia_medicamentos || '',
+        alergia_alimentar: healthHistory?.alergia_alimentar || false,
+        desc_alergia_alimentar: healthHistory?.desc_alergia_alimentar || '',
+        doenca_cardiaca: healthHistory?.doenca_cardiaca || false,
+        desc_doenca_cardiaca: healthHistory?.desc_doenca_cardiaca || '',
+        diabetes: healthHistory?.diabetes || false,
+        desc_diabetes: healthHistory?.desc_diabetes || '',
+        disturbios_neurologicos: healthHistory?.disturbios_neurologicos || false,
+        desc_disturbios_neurologicos: healthHistory?.desc_disturbios_neurologicos || '',
+        epilepsia_convulsoes: healthHistory?.epilepsia_convulsoes || false,
+        desc_epilepsia_convulsoes: healthHistory?.desc_epilepsia_convulsoes || '',
+        hipertensao: healthHistory?.hipertensao || false,
+        desc_hipertensao: healthHistory?.desc_hipertensao || '',
+        asma: healthHistory?.asma || false,
+        desc_asma: healthHistory?.desc_asma || '',
+        doenca_renal: healthHistory?.doenca_renal || false,
+        desc_doenca_renal: healthHistory?.desc_doenca_renal || '',
+        sindromes_geneticas: healthHistory?.sindromes_geneticas || false,
+        desc_sindromes_geneticas: healthHistory?.desc_sindromes_geneticas || '',
+        doenca_autoimune: healthHistory?.doenca_autoimune || false,
+        desc_doenca_autoimune: healthHistory?.desc_doenca_autoimune || '',
+        disturbios_coagulacao: healthHistory?.disturbios_coagulacao || false,
+        desc_disturbios_coagulacao: healthHistory?.desc_disturbios_coagulacao || '',
+        uso_atual_medicamentos: healthHistory?.uso_atual_medicamentos || false,
+        desc_uso_atual_medicamentos: healthHistory?.desc_uso_atual_medicamentos || '',
+        medicamentos_continuos: healthHistory?.medicamentos_continuos || false,
+        desc_medicamentos_continuos: healthHistory?.desc_medicamentos_continuos || '',
+        uso_recente_antibioticos: healthHistory?.uso_recente_antibioticos || false,
+        desc_uso_recente_antibioticos: healthHistory?.desc_uso_recente_antibioticos || '',
+        suplementos_nutricionais: healthHistory?.suplementos_nutricionais || false,
+        desc_suplementos_nutricionais: healthHistory?.desc_suplementos_nutricionais || '',
+        tratamento_odontologico_anterior: healthHistory?.tratamento_odontologico_anterior || false,
+        desc_tratamento_odontologico_anterior: healthHistory?.desc_tratamento_odontologico_anterior || '',
+        reacao_negativa_odontologica: healthHistory?.reacao_negativa_odontologica || false,
+        desc_reacao_negativa_odontologica: healthHistory?.desc_reacao_negativa_odontologica || '',
+        necessidade_sedacao_especial: healthHistory?.necessidade_sedacao_especial || false,
+        desc_necessidade_sedacao_especial: healthHistory?.desc_necessidade_sedacao_especial || '',
+        trauma_dental: healthHistory?.trauma_dental || false,
+        desc_trauma_dental: healthHistory?.desc_trauma_dental || '',
+        ansiedade_consultas: healthHistory?.ansiedade_consultas || false,
+        desc_ansiedade_consultas: healthHistory?.desc_ansiedade_consultas || '',
+        dificuldade_colaboracao: healthHistory?.dificuldade_colaboracao || false,
+        desc_dificuldade_colaboracao: healthHistory?.desc_dificuldade_colaboracao || '',
+        historico_internacoes: healthHistory?.historico_internacoes || false,
+        desc_historico_internacoes: healthHistory?.desc_historico_internacoes || '',
+        necessidades_especiais: healthHistory?.necessidades_especiais || false,
+        desc_necessidades_especiais: healthHistory?.desc_necessidades_especiais || '',
+        nascimento_prematuro: healthHistory?.nascimento_prematuro || false,
+        desc_nascimento_prematuro: healthHistory?.desc_nascimento_prematuro || '',
+        parto_complicacoes: healthHistory?.parto_complicacoes || false,
+        desc_parto_complicacoes: healthHistory?.desc_parto_complicacoes || '',
+        uso_chupeta: healthHistory?.uso_chupeta || false,
+        desc_uso_chupeta: healthHistory?.desc_uso_chupeta || '',
+        habitos_succao_bruxismo: healthHistory?.habitos_succao_bruxismo || false,
+        desc_habitos_succao_bruxismo: healthHistory?.desc_habitos_succao_bruxismo || '',
+        amamentacao_prolongada: healthHistory?.amamentacao_prolongada || false,
+        desc_amamentacao_prolongada: healthHistory?.desc_amamentacao_prolongada || '',
+        alimentacao_especial: healthHistory?.alimentacao_especial || false,
+        desc_alimentacao_especial: healthHistory?.desc_alimentacao_especial || '',
+        realizou_cirurgia: healthHistory?.realizou_cirurgia || false,
+        desc_realizou_cirurgia: healthHistory?.desc_realizou_cirurgia || '',
+        foi_internado: healthHistory?.foi_internado || false,
+        desc_foi_internado: healthHistory?.desc_foi_internado || '',
+        transfusao_sangue: healthHistory?.transfusao_sangue || false,
+        desc_transfusao_sangue: healthHistory?.desc_transfusao_sangue || '',
+        doencas_hereditarias: healthHistory?.doencas_hereditarias || false,
+        desc_doencas_hereditarias: healthHistory?.desc_doencas_hereditarias || '',
+        historico_alergias_familia: healthHistory?.historico_alergias_familia || false,
+        desc_historico_alergias_familia: healthHistory?.desc_historico_alergias_familia || '',
+        problemas_dentarios_familia: healthHistory?.problemas_dentarios_familia || false,
+        desc_problemas_dentarios_familia: healthHistory?.desc_problemas_dentarios_familia || '',
+        problemas_gestacao: healthHistory?.problemas_gestacao || '',
+        presenca_doenca: healthHistory?.presenca_doenca || '',
+        idade_primeiro_dente: healthHistory?.idade_primeiro_dente || '',
+        anestesia_odontologica: healthHistory?.anestesia_odontologica !== undefined ? healthHistory.anestesia_odontologica : false,
+        frequencia_escovacao: healthHistory?.frequencia_escovacao || '',
+        creme_dental: healthHistory?.creme_dental || '',
+        contem_fluor: healthHistory?.contem_fluor !== undefined ? healthHistory.contem_fluor : true,
+        uso_fio_dental: healthHistory?.uso_fio_dental !== undefined ? healthHistory.uso_fio_dental : false,
+        quem_realiza_escovacao: healthHistory?.quem_realiza_escovacao || '',
+        uso_mamadeira: healthHistory?.uso_mamadeira !== undefined ? healthHistory.uso_mamadeira : false,
+        refeicoes_diarias: healthHistory?.refeicoes_diarias || '',
+        fonte_acucar: healthHistory?.fonte_acucar || '',
+        habito_succao: healthHistory?.habito_succao !== undefined ? healthHistory.habito_succao : false,
+        roer_unhas: healthHistory?.roer_unhas !== undefined ? healthHistory.roer_unhas : false,
+        dormir_boca_aberta: healthHistory?.dormir_boca_aberta !== undefined ? healthHistory.dormir_boca_aberta : false,
+        vacinacao_dia: healthHistory?.vacinacao_dia !== undefined ? healthHistory.vacinacao_dia : true,
+        problemas_cardiacos: healthHistory?.problemas_cardiacos || '',
+        problemas_renais: healthHistory?.problemas_renais || '',
+        problemas_gastricos: healthHistory?.problemas_gastricos || '',
+        problemas_respiratorios: healthHistory?.problemas_respiratorios || '',
+        alteracao_coagulacao: healthHistory?.alteracao_coagulacao || '',
+        internacoes_recentes: healthHistory?.internacoes_recentes || '',
+        peso_atual: healthHistory?.peso_atual || '',
+        plano_tratamento: treatment?.plano_tratamento || '',
+      });
+      
+      console.log('Dados carregados com sucesso para:', patient.nome);
+    } catch (error) {
+      console.error('Erro ao carregar dados do formulário:', error);
+      setLoadError('Erro ao carregar dados do formulário.');
+      toast.error('Erro ao carregar dados do formulário.');
+    } finally {
+      setLoading(false);
     }
-    
+  }, [id, form, getPatientReminders]);
+
+  useEffect(() => {
     if (id) {
       loadPatient();
     }
-  }, [id]); // Dependência apenas no ID
+  }, [id, loadPatient]);
 
-  // Função para validar a aba atual e passar para a próxima
   const validateTabAndContinue = async (nextTab: string) => {
     let fieldsToValidate: (keyof PatientFormValues)[] = [];
     if (activeTab === 'dados-pessoais') {
@@ -441,7 +434,6 @@ const NewPatientForm = () => {
     }
   };
 
-  // MELHORADO: Função para salvar com verificação de persistência
   const onSubmit = async (data: PatientFormValues, share: boolean = false) => {
     try {
       setSaving(true);
@@ -516,7 +508,6 @@ const NewPatientForm = () => {
         desc_parto_complicacoes: data.desc_parto_complicacoes || '',
         uso_chupeta: data.uso_chupeta,
         desc_uso_chupeta: data.desc_uso_chupeta || '',
-        
         habitos_succao_bruxismo: data.habitos_succao_bruxismo,
         desc_habitos_succao_bruxismo: data.desc_habitos_succao_bruxismo || '',
         amamentacao_prolongada: data.amamentacao_prolongada,
@@ -562,114 +553,38 @@ const NewPatientForm = () => {
       
       let patientId = id;
       
-      // Salvar dados do paciente
       if (id) {
         console.log('Atualizando paciente existente:', id);
-        const { error } = await supabase
-          .from('patients')
-          .update(patientData)
-          .eq('id', id);
-        
-        if (error) {
-          console.error('Erro ao atualizar paciente:', error);
-          throw error;
-        }
-        console.log('Paciente atualizado com sucesso');
+        const { error } = await supabase.from('patients').update(patientData).eq('id', id);
+        if (error) throw error;
       } else {
         console.log('Criando novo paciente');
-        const { data: newPatient, error } = await supabase
-          .from('patients')
-          .insert([patientData])
-          .select();
-        
-        if (error || !newPatient) {
-          console.error('Erro ao criar paciente:', error);
-          throw error || new Error("Falha ao criar paciente.");
-        }
-        
+        const { data: newPatient, error } = await supabase.from('patients').insert([patientData]).select();
+        if (error || !newPatient) throw error || new Error("Falha ao criar paciente.");
         patientId = newPatient[0].id;
-        console.log('Novo paciente criado:', patientId);
       }
       
       if (patientId) {
-        // Salvar histórico de saúde
-        console.log('Salvando histórico de saúde...');
-        const { data: existingHistory } = await supabase
-          .from('health_histories')
-          .select('id')
-          .eq('patient_id', patientId)
-          .single();
-        
+        const { data: existingHistory } = await supabase.from('health_histories').select('id').eq('patient_id', patientId).single();
         if (existingHistory) {
-          const { error } = await supabase
-            .from('health_histories')
-            .update({ ...healthHistoryData, patient_id: patientId })
-            .eq('id', existingHistory.id);
-          
-          if (error) {
-            console.error('Erro ao atualizar histórico:', error);
-            throw error;
-          }
-          console.log('Histórico de saúde atualizado');
+          const { error } = await supabase.from('health_histories').update({ ...healthHistoryData, patient_id: patientId }).eq('id', existingHistory.id);
+          if (error) throw error;
         } else {
-          const { error } = await supabase
-            .from('health_histories')
-            .insert([{ ...healthHistoryData, patient_id: patientId }]);
-          
-          if (error) {
-            console.error('Erro ao criar histórico:', error);
-            throw error;
-          }
-          console.log('Histórico de saúde criado');
+          const { error } = await supabase.from('health_histories').insert([{ ...healthHistoryData, patient_id: patientId }]);
+          if (error) throw error;
         }
         
-        // Salvar plano de tratamento se fornecido
         if (data.plano_tratamento) {
-          console.log('Salvando plano de tratamento...');
           const treatmentData = { plano_tratamento: data.plano_tratamento };
-          
-          const { data: existingTreatment } = await supabase
-            .from('treatments')
-            .select('id')
-            .eq('patient_id', patientId)
-            .single();
-          
+          const { data: existingTreatment } = await supabase.from('treatments').select('id').eq('patient_id', patientId).single();
           if (existingTreatment) {
-            const { error } = await supabase
-              .from('treatments')
-              .update({ ...treatmentData, patient_id: patientId })
-              .eq('id', existingTreatment.id);
-            
-            if (error) {
-              console.error('Erro ao atualizar tratamento:', error);
-              throw error;
-            }
-            console.log('Plano de tratamento atualizado');
+            const { error } = await supabase.from('treatments').update({ ...treatmentData, patient_id: patientId }).eq('id', existingTreatment.id);
+            if (error) throw error;
           } else {
-            const { error } = await supabase
-              .from('treatments')
-              .insert([{ ...treatmentData, patient_id: patientId }]);
-            
-            if (error) {
-              console.error('Erro ao criar tratamento:', error);
-              throw error;
-            }
-            console.log('Plano de tratamento criado');
+            const { error } = await supabase.from('treatments').insert([{ ...treatmentData, patient_id: patientId }]);
+            if (error) throw error;
           }
         }
-        
-        // Verificar se os dados foram realmente salvos
-        const { data: savedPatient, error: verifyError } = await supabase
-          .from('patients')
-          .select('*')
-          .eq('id', patientId)
-          .single();
-        
-        if (verifyError || !savedPatient) {
-          throw new Error('Falha na verificação dos dados salvos');
-        }
-        
-        console.log('Dados verificados e salvos com sucesso');
         
         if (share) {
           const shareLink = `${window.location.origin}/public/form?id=${patientId}`;
